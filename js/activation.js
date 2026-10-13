@@ -57,8 +57,7 @@ async function validateCardToken(token) {
   }
   
   try {
-    // Try to find card by ID or token
-    // Token bisa berupa: card UUID, qr_token, atau nfc_token
+    // Try to find card by ID or serial
     let card = null;
     
     // Check if token is a UUID format (card ID)
@@ -68,7 +67,7 @@ async function validateCardToken(token) {
       // Try to find by card ID
       const { data, error } = await supabaseClient
         .from('cards')
-        .select('id, serial, lifecycle_state, qr_token, nfc_token, owner_id')
+        .select('id, serial, lifecycle_state, owner_id')
         .eq('id', token)
         .single();
       
@@ -77,24 +76,11 @@ async function validateCardToken(token) {
       }
     }
     
-    // If not found by ID, try qr_token or nfc_token
+    // If not found by ID, try by serial
     if (!card) {
       const { data, error } = await supabaseClient
         .from('cards')
-        .select('id, serial, lifecycle_state, qr_token, nfc_token, owner_id')
-        .or(`qr_token.eq.${token},nfc_token.eq.${token}`)
-        .single();
-      
-      if (!error && data) {
-        card = data;
-      }
-    }
-    
-    // If still not found, try by serial
-    if (!card) {
-      const { data, error } = await supabaseClient
-        .from('cards')
-        .select('id, serial, lifecycle_state, qr_token, nfc_token, owner_id')
+        .select('id, serial, lifecycle_state, owner_id')
         .eq('serial', token)
         .single();
       
