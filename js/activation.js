@@ -57,26 +57,94 @@ async function validateCardToken(token) {
   }
   
   try {
-    // In production, this would call an Edge Function that:
-    // 1. Validates the token hash
-    // 2. Checks the card is in 'sold_unclaimed' state
-    // 3. Creates a claim_session with expiry
-    // 4. Returns card info and claim session token
+    // Try to find card by ID or token
+    // Token bisa berupa: card UUID, qr_token, atau nfc_token
+    let card = null;
     
-    const { data, error } = await supabaseClient.functions.invoke('validate-card-token', {
-      body: { token }
-    });
+    // Check if token is a UUID format (card ID)
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     
-    if (error) {
-      console.error('Token validation error:', error);
+    if (uuidPattern.test(token)) {
+      // Try to find by card ID
+      const { data, error } = await supabaseClient
+        .from('cards')
+        .select('id, serial, lifecycle_state, qr_token, nfc_token, owner_id')
+        .eq('id', token)
+        .single();
+      
+      if (!error && data) {
+        card = data;
+      }
+    }
+    
+    // If not found by ID, try qr_token or nfc_token
+    if (!card) {
+      const { data, error } = await supabaseClient
+        .from('cards')
+        .select('id, serial, lifecycle_state, qr_token, nfc_token, owner_id')
+        .or(`qr_token.eq.${token},nfc_token.eq.${token}`)
+        .single();
+      
+      if (!error && data) {
+        card = data;
+      }
+    }
+    
+    // If still not found, try by serial
+    if (!card) {
+      const { data, error } = await supabaseClient
+        .from('cards')
+        .select('id, serial, lifecycle_state, qr_token, nfc_token, owner_id')
+        .eq('serial', token)
+        .single();
+      
+      if (!error && data) {
+        card = data;
+      }
+    }
+    
+    if (!card) {
       return {
         valid: false,
         error: 'invalid',
-        message: 'Token tidak valid atau sudah kedaluwarsa.'
+        message: 'Token tidak valid. Kartu tidak ditemukan.'
       };
     }
     
-    return data;
+    // Check card status
+    if (card.lifecycle_state === 'claimed' && card.owner_id) {
+      return {
+        valid: false,
+        error: 'already_claimed',
+        message: 'Kartu ini sudah diaktifkan oleh pemilik lain.'
+      };
+    }
+    
+    if (card.lifecycle_state === 'admin_stock') {
+      return {
+        valid: false,
+        error: 'not_sold',
+        message: 'Kartu ini belum tersedia. Hubungi reseller untuk membeli kartu.'
+      };
+    }
+    
+    if (card.lifecycle_state === 'reseller_stock') {
+      return {
+        valid: false,
+        error: 'not_sold',
+        message: 'Kartu ini belum ditandai terjual oleh reseller.'
+      };
+    }
+    
+    // Card is valid and ready for activation (sold_unclaimed)
+    return {
+      valid: true,
+      cardId: card.id,
+      serial: card.serial,
+      status: card.lifecycle_state,
+      claimSessionToken: card.id // Use card ID as claim session token for now
+    };
+    
   } catch (e) {
     console.error('Token validation exception:', e);
     return {
