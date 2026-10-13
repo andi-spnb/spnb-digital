@@ -341,11 +341,18 @@ async function handleCardRedirect(token) {
     const result = await resolveCardToken(token);
     
     if (!result.valid) {
-      root.innerHTML = cardRedirectErrorPage(result.error, result.message);
+      // Check if card needs activation (not yet claimed)
+      if (result.redirectToActivation || result.error === 'not_active') {
+        // Redirect to activation page with the card token
+        go(`/aktivasi?token=${encodeURIComponent(token)}`);
+        return;
+      }
+      
+      root.innerHTML = cardRedirectErrorPage(result.error, result.message, token);
       return;
     }
     
-    // Record interaction
+    // Card is claimed and active - record interaction
     await recordInteraction(
       result.tokenKind === 'nfc' ? 'nfc_tap' : 'qr_scan',
       result.businessId,
@@ -355,25 +362,30 @@ async function handleCardRedirect(token) {
       result.destinationMode
     );
     
-    // Redirect based on destination mode
+    // Redirect based on owner's chosen destination mode
     if (result.destinationMode === 'direct_google' && result.googleReviewUrl) {
-      // Direct redirect to Google Review
+      // Direct redirect to Google Review (owner's choice)
       window.location.href = result.googleReviewUrl;
     } else if (result.destinationMode === 'profile' && result.slug) {
-      // Redirect to profile page
+      // Redirect to business profile page (owner's choice)
       profileState.cardId = result.cardId;
       profileState.tokenKind = result.tokenKind;
       go(`/p/${result.slug}`);
     } else if (result.googleReviewUrl) {
-      // Fallback to Google Review
+      // Fallback to Google Review if no slug available
       window.location.href = result.googleReviewUrl;
+    } else if (result.slug) {
+      // Fallback to profile if no Google Review URL
+      profileState.cardId = result.cardId;
+      profileState.tokenKind = result.tokenKind;
+      go(`/p/${result.slug}`);
     } else {
-      // No valid destination
-      root.innerHTML = cardRedirectErrorPage('no_destination', 'Kartu belum dikonfigurasi dengan benar.');
+      // No valid destination configured
+      root.innerHTML = cardRedirectErrorPage('no_destination', 'Kartu belum dikonfigurasi dengan benar. Hubungi pemilik kartu.', token);
     }
   } catch (e) {
     console.error('Card redirect error:', e);
-    root.innerHTML = cardRedirectErrorPage('error', 'Terjadi kesalahan saat memproses kartu.');
+    root.innerHTML = cardRedirectErrorPage('error', 'Terjadi kesalahan saat memproses kartu.', token);
   }
 }
 
@@ -419,6 +431,18 @@ async function resolveCardToken(token) {
       };
     }
     
+    // Demo for unclaimed card - redirect to activation
+    if (token === 'demo-unclaimed') {
+      return {
+        valid: false,
+        error: 'not_active',
+        message: 'Kartu ini belum diaktifkan.',
+        redirectToActivation: true,
+        cardId: 'demo-card-unclaimed',
+        serial: 'KRT-000999'
+      };
+    }
+    
     // Default demo - direct to profile
     return {
       valid: true,
@@ -432,20 +456,57 @@ async function resolveCardToken(token) {
   }
   
   try {
-    // Call Edge Function to resolve token
-    const { data, error } = await supabaseClient.functions.invoke('resolve-card-token', {
-      body: { token }
+    // Try Edge Function first
+    try {
+      const { data, error } = await supabaseClient.functions.invoke('resolve-card-token', {
+        body: { token }
+      });
+      
+      if (!error && data) {
+        return data;
+      }
+      console.log('Edge Function not available, falling back to RPC');
+    } catch (edgeFnError) {
+      console.log('Edge Function error, falling back to RPC:', edgeFnError.message);
+    }
+    
+    // Fallback to RPC function
+    const { data: rpcData, error: rpcError } = await supabaseClient.rpc('resolve_card_for_redirect', {
+      p_token: token
     });
     
-    if (error || !data?.valid) {
+    if (rpcError) {
+      console.error('RPC resolve_card_for_redirect error:', rpcError);
       return {
         valid: false,
-        error: data?.error || 'invalid',
-        message: data?.message || 'Token tidak valid.'
+        error: 'error',
+        message: 'Gagal memproses kartu.'
       };
     }
     
-    return data;
+    // Handle RPC response
+    if (rpcData) {
+      // Check if card needs activation (not_active error with redirect flag)
+      if (rpcData.redirect_to_activation) {
+        return {
+          valid: false,
+          error: 'not_active',
+          message: rpcData.message,
+          redirectToActivation: true,
+          cardId: rpcData.card_id,
+          serial: rpcData.serial,
+          lifecycleState: rpcData.lifecycle_state
+        };
+      }
+      
+      return rpcData;
+    }
+    
+    return {
+      valid: false,
+      error: 'invalid',
+      message: 'Token tidak valid.'
+    };
   } catch (e) {
     console.error('resolveCardToken exception:', e);
     return {
@@ -469,17 +530,23 @@ function cardRedirectLoadingPage() {
     </div>`;
 }
 
-function cardRedirectErrorPage(error, message) {
+function cardRedirectErrorPage(error, message, token = null) {
   const errorConfig = {
-    'not_found': { icon: '🔍', title: 'Kartu Tidak Ditemukan' },
-    'not_active': { icon: '⏸️', title: 'Kartu Belum Aktif' },
-    'suspended': { icon: '🚫', title: 'Kartu Dinonaktifkan' },
-    'no_destination': { icon: '⚙️', title: 'Kartu Belum Dikonfigurasi' },
-    'expired': { icon: '⏰', title: 'Token Kedaluwarsa' },
-    'error': { icon: '⚠️', title: 'Terjadi Kesalahan' },
+    'not_found': { icon: '🔍', title: 'Kartu Tidak Ditemukan', showActivation: false },
+    'not_active': { icon: '⏸️', title: 'Kartu Belum Aktif', showActivation: true },
+    'not_sold': { icon: '🏷️', title: 'Kartu Belum Dijual', showActivation: false },
+    'suspended': { icon: '🚫', title: 'Kartu Dinonaktifkan', showActivation: false },
+    'no_destination': { icon: '⚙️', title: 'Kartu Belum Dikonfigurasi', showActivation: false },
+    'expired': { icon: '⏰', title: 'Token Kedaluwarsa', showActivation: false },
+    'error': { icon: '⚠️', title: 'Terjadi Kesalahan', showActivation: false },
   };
   
   const config = errorConfig[error] || errorConfig['error'];
+  
+  // Build activation button if applicable
+  const activationBtn = config.showActivation && token
+    ? `<button class="btn btn-primary" data-route="/aktivasi?token=${encodeURIComponent(token)}">Aktivasi Kartu Sekarang</button>`
+    : `<button class="btn btn-primary" data-route="/">Kembali ke Beranda</button>`;
   
   return `
     <div class="profile-page">
@@ -489,8 +556,9 @@ function cardRedirectErrorPage(error, message) {
           <h2 style="margin-bottom:12px">${config.title}</h2>
           <p style="color:var(--muted);margin-bottom:24px;font-size:14px">${message}</p>
           <div style="display:flex;flex-direction:column;gap:12px">
-            <button class="btn btn-primary" data-route="/">Kembali ke Beranda</button>
-            <a class="btn btn-secondary" href="${whatsappUrl}" target="_blank" rel="noopener">Hubungi Bantuan</a>
+            ${activationBtn}
+            ${config.showActivation ? `<button class="btn btn-secondary" data-route="/">Kembali ke Beranda</button>` : ''}
+            <a class="btn btn-ghost" href="${whatsappUrl}" target="_blank" rel="noopener">Hubungi Bantuan</a>
           </div>
         </div>
       </main>
