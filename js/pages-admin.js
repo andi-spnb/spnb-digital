@@ -18,12 +18,37 @@ function adminPage(route) {
   if (route === "/admin/log") return adminLogsPage();
   if (route === "/admin/pengaturan") return adminSettingsPage();
   
+  // Calculate dashboard stats from real data
+  const cards = state.adminData?.cards || [];
+  const resellers = state.adminData?.resellers || [];
+  const cardStats = state.adminData?.cardStats || [];
+  
+  // Count by lifecycle state
+  const activeCards = cardStats.filter(c => c.lifecycle_state === 'claimed').length;
+  const adminStock = cardStats.filter(c => c.lifecycle_state === 'admin_stock').length;
+  const resellerStock = cardStats.filter(c => c.lifecycle_state === 'reseller_stock').length;
+  const soldUnclaimed = cardStats.filter(c => c.lifecycle_state === 'sold_unclaimed').length;
+  const totalStock = adminStock + resellerStock;
+  
+  // Count active resellers
+  const activeResellers = resellers.filter(r => r.status === 'active').length;
+  const uniqueCities = [...new Set(resellers.map(r => r.city).filter(Boolean))].length;
+  
+  // Calculate pending tasks
+  const pendingActivations = soldUnclaimed; // Cards sold but not yet claimed
+  const pendingBatches = 0; // Would need batch data
+  const pendingResets = 0; // Would need reset requests data
+  const totalPending = pendingActivations + pendingBatches + pendingResets;
+  
+  // Get recent cards for table
+  const recentCards = cards.slice(0, 6);
+  
   const content = `
     <section class="workbench admin-workbench">
       <div>
         <span class="workbench-label">Perlu Ditindaklanjuti</span>
-        <h2>6 tugas operasional menunggu</h2>
-        <p>2 reset akun, 3 aktivasi tertunda, 1 batch belum selesai.</p>
+        <h2>${totalPending > 0 ? `${totalPending} tugas operasional menunggu` : 'Tidak ada tugas menunggu'}</h2>
+        <p>${totalPending > 0 ? `${pendingResets > 0 ? pendingResets + ' reset akun, ' : ''}${pendingActivations > 0 ? pendingActivations + ' aktivasi tertunda' : ''}${pendingBatches > 0 ? ', ' + pendingBatches + ' batch pending' : ''}` : 'Semua operasional berjalan lancar.'}</p>
       </div>
       <div class="workbench-actions">
         <button class="btn btn-primary" data-route="/admin/log">${icons.log} Lihat Log</button>
@@ -33,40 +58,40 @@ function adminPage(route) {
     
     <div class="admin-stat-cards">
       <div class="admin-stat-card highlight">
-        <strong>412</strong>
+        <strong>${formatNumber(activeCards)}</strong>
         <span>Kartu Aktif</span>
-        <small>+24 bulan ini</small>
+        <small>Sudah diklaim owner</small>
       </div>
       <div class="admin-stat-card">
-        <strong>236</strong>
+        <strong>${formatNumber(totalStock)}</strong>
         <span>Stok Tersedia</span>
-        <small>102 admin · 134 reseller</small>
+        <small>${adminStock} admin · ${resellerStock} reseller</small>
       </div>
       <div class="admin-stat-card">
-        <strong>12</strong>
+        <strong>${activeResellers}</strong>
         <span>Reseller Aktif</span>
-        <small>6 kota</small>
+        <small>${uniqueCities} kota</small>
       </div>
       <div class="admin-stat-card">
-        <strong>84.2K</strong>
-        <span>Total Interaksi</span>
-        <small>+22% bulan ini</small>
+        <strong>${formatNumber(cardStats.length)}</strong>
+        <span>Total Kartu</span>
+        <small>Semua status</small>
       </div>
     </div>
     
     <div class="exception-grid">
-      <button data-route="/admin/owner">
-        <strong>2</strong>
+      <button data-route="/admin/owner" class="${pendingResets > 0 ? 'has-alert' : ''}">
+        <strong>${pendingResets}</strong>
         <span>Reset Akun</span>
         <small>Permintaan owner</small>
       </button>
-      <button data-route="/admin/kartu">
-        <strong>3</strong>
+      <button data-route="/admin/kartu" class="${pendingActivations > 0 ? 'has-alert' : ''}">
+        <strong>${pendingActivations}</strong>
         <span>Aktivasi Tertunda</span>
-        <small>> 24 jam</small>
+        <small>Menunggu owner</small>
       </button>
-      <button data-route="/admin/stok">
-        <strong>1</strong>
+      <button data-route="/admin/stok" class="${pendingBatches > 0 ? 'has-alert' : ''}">
+        <strong>${pendingBatches}</strong>
         <span>Batch Pending</span>
         <small>NFC belum ditulis</small>
       </button>
@@ -75,26 +100,130 @@ function adminPage(route) {
     <div class="dashboard-grid" style="margin-top:18px">
       <section class="panel">
         <div class="panel-title">
-          <div><h2>Kartu Terbaru</h2><p>Aktivitas kartu hari ini</p></div>
+          <div><h2>Kartu Terbaru</h2><p>Aktivitas kartu terkini</p></div>
           <button class="btn btn-primary btn-sm" data-batch-modal>${icons.plus} Buat Batch</button>
         </div>
-        ${adminTable(6)}
+        ${adminTableFromData(recentCards)}
       </section>
       
       <section class="panel">
         <div class="panel-title">
           <div><h2>Aktivitas Admin</h2><p>Log terbaru</p></div>
+          <button class="btn btn-ghost btn-sm" data-route="/admin/log">Lihat Semua</button>
         </div>
         <div class="activity-list">
-          ${activity("card", "Batch BTH-0018 dibuat", "100 kartu", "10:32")}
-          ${activity("stock", "20 kartu ke Reseller Bandung", "Distribusi", "09:48")}
-          ${activity("user", "Reset akun Siti Rahma", "Link dibuat", "Kemarin")}
-          ${activity("check", "KRT-000127 diaktifkan", "Owner baru", "Kemarin")}
+          ${getRecentActivities()}
         </div>
       </section>
     </div>`;
   
   return appShell("admin", "Dashboard Admin", "Kelola operasional SPNB DIGITAL.", content);
+}
+
+// Helper function to render table from card data
+function adminTableFromData(cards) {
+  const tableCards = cards.map(c => ({
+    id: c.id,
+    serial: c.serial,
+    status: mapCardStatus(c.lifecycle_state),
+    reseller: c.resellers?.name || '—',
+    owner: c.accounts?.display_name ? maskPhone(c.accounts.phone_e164) : '—',
+    activated: formatDate(c.claimed_at),
+    interactions: '0'
+  }));
+  
+  return `
+    <div class="table-wrap table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Serial</th>
+            <th>Status</th>
+            <th>Reseller</th>
+            <th>Owner</th>
+            <th>Aktivasi</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableCards.length === 0 ? `
+            <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Belum ada kartu.</td></tr>
+          ` : tableCards.map(c => `
+            <tr>
+              <td data-label="Serial"><strong>${c.serial}</strong></td>
+              <td data-label="Status">${statusBadge(c.status)}</td>
+              <td data-label="Reseller">${c.reseller}</td>
+              <td data-label="Owner">${c.owner}</td>
+              <td data-label="Aktivasi">${c.activated}</td>
+              <td data-label=""><button class="action-menu" data-card-menu="${c.id || c.serial}">⋯</button></td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// Get recent activities for dashboard
+function getRecentActivities() {
+  // This would ideally come from an audit log table
+  // For now, generate from recent card changes
+  const cards = state.adminData?.cards || [];
+  const activities = [];
+  
+  // Get recently claimed cards
+  const recentClaimed = cards
+    .filter(c => c.lifecycle_state === 'claimed' && c.claimed_at)
+    .sort((a, b) => new Date(b.claimed_at) - new Date(a.claimed_at))
+    .slice(0, 2);
+  
+  recentClaimed.forEach(c => {
+    activities.push({
+      icon: 'check',
+      title: `${c.serial} diaktifkan`,
+      detail: c.accounts?.display_name || 'Owner baru',
+      time: formatRelativeTime(c.claimed_at)
+    });
+  });
+  
+  // Get recently sold cards
+  const recentSold = cards
+    .filter(c => c.lifecycle_state === 'sold_unclaimed')
+    .slice(0, 2);
+  
+  recentSold.forEach(c => {
+    activities.push({
+      icon: 'card',
+      title: `${c.serial} ditandai terjual`,
+      detail: c.resellers?.name || 'Reseller',
+      time: 'Baru-baru ini'
+    });
+  });
+  
+  // Add some default activities if empty
+  if (activities.length === 0) {
+    activities.push(
+      { icon: 'card', title: 'Tidak ada aktivitas terbaru', detail: 'Mulai dengan membuat batch kartu', time: '-' }
+    );
+  }
+  
+  return activities.slice(0, 4).map(a => activity(a.icon, a.title, a.detail, a.time)).join('');
+}
+
+// Format relative time
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'Baru saja';
+  if (diffMins < 60) return `${diffMins} menit lalu`;
+  if (diffHours < 24) return `${diffHours} jam lalu`;
+  if (diffDays === 1) return 'Kemarin';
+  if (diffDays < 7) return `${diffDays} hari lalu`;
+  return formatDate(dateStr);
 }
 
 function adminTable(limit) {
