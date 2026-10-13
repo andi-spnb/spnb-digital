@@ -320,80 +320,101 @@ function cardQrNfcModal(cardId, serial, qrToken, nfcToken) {
   const nfcUrl = `${baseUrl}#/c/${nfcToken || cardId}`;
   
   openModal(`
-    <div class="row-between">
-      <div><h2>QR Code & NFC</h2><p>${serial}</p></div>
+    <div class="row-between modal-header-qr">
+      <div><h2>${icons.qr} QR Code & NFC</h2><p>Kartu: ${serial}</p></div>
       <button class="icon-btn" data-modal-close>${icons.close}</button>
     </div>
-    <div class="qr-nfc-content">
-      <div class="qr-section">
-        <div class="qr-code-container" id="qr-code-display">
-          <div class="qr-loading">
-            <div class="loading-spinner"></div>
-            <span>Generating QR...</span>
+    
+    <div class="qr-nfc-wrapper">
+      <div class="qr-nfc-grid">
+        <!-- QR Code Section -->
+        <div class="qr-section">
+          <div class="qr-code-box">
+            <div class="qr-code-container" id="qr-code-display">
+              <div class="qr-loading">
+                <div class="loading-spinner"></div>
+                <span>Generating QR...</span>
+              </div>
+            </div>
           </div>
-        </div>
-        <p class="qr-serial">${serial}</p>
-      </div>
-      
-      <div class="link-section">
-        <div class="form-group">
-          <label>${icons.qr} Link Aktivasi (QR Code)</label>
-          <div class="input-with-copy">
-            <input class="input" id="activation-link" value="${activationUrl}" readonly />
-            <button class="btn btn-ghost btn-sm" data-copy-link="activation-link" title="Salin link">
-              ${icons.link}
-            </button>
+          <div class="qr-info">
+            <span class="qr-serial-badge">${serial}</span>
+            <p class="qr-hint">Scan QR untuk aktivasi kartu</p>
           </div>
-          <span class="input-hint">Link ini digunakan untuk QR code pada kartu fisik</span>
         </div>
         
-        <div class="form-group">
-          <label>${icons.nfc} Link NFC Tag</label>
-          <div class="input-with-copy">
-            <input class="input" id="nfc-link" value="${nfcUrl}" readonly />
-            <button class="btn btn-ghost btn-sm" data-copy-link="nfc-link" title="Salin link">
-              ${icons.link}
-            </button>
+        <!-- Links Section -->
+        <div class="links-section">
+          <div class="link-card">
+            <div class="link-card-header">
+              <span class="link-icon qr-icon">${icons.qr}</span>
+              <div>
+                <strong>Link Aktivasi (QR)</strong>
+                <small>Untuk dicetak sebagai QR code</small>
+              </div>
+            </div>
+            <div class="link-input-group">
+              <input class="input link-input" id="activation-link" value="${activationUrl}" readonly />
+              <button class="btn btn-secondary btn-sm" data-copy-link="activation-link">
+                ${icons.link} Salin
+              </button>
+            </div>
           </div>
-          <span class="input-hint">Link ini ditulis ke NFC tag pada kartu fisik</span>
+          
+          <div class="link-card">
+            <div class="link-card-header">
+              <span class="link-icon nfc-icon">${icons.nfc}</span>
+              <div>
+                <strong>Link NFC Tag</strong>
+                <small>Untuk ditulis ke NFC tag</small>
+              </div>
+            </div>
+            <div class="link-input-group">
+              <input class="input link-input" id="nfc-link" value="${nfcUrl}" readonly />
+              <button class="btn btn-secondary btn-sm" data-copy-link="nfc-link">
+                ${icons.link} Salin
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       
-      <div class="nfc-info-section">
-        <div class="info-box">
-          ${icons.nfc}
+      <!-- NFC Specs Section -->
+      <div class="nfc-specs-section">
+        <div class="nfc-specs-header">
+          <span class="nfc-specs-icon">${icons.nfc}</span>
           <div>
-            <strong>Informasi NFC Tag</strong>
-            <p>Gunakan aplikasi NFC Writer untuk menulis link NFC ke tag. Pastikan tag mendukung NDEF format.</p>
+            <strong>Spesifikasi NFC Tag</strong>
+            <small>Informasi untuk menulis tag NFC</small>
           </div>
         </div>
-        
-        <div class="nfc-specs">
-          <h4>Spesifikasi Tag NFC</h4>
-          <div class="spec-grid">
-            <div class="spec-item">
-              <span class="spec-label">Tipe Tag</span>
-              <span class="spec-value">NTAG213 / NTAG215</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">Format</span>
-              <span class="spec-value">NDEF URI Record</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-label">Token</span>
-              <span class="spec-value">${nfcToken || cardId}</span>
-            </div>
+        <div class="nfc-specs-grid">
+          <div class="nfc-spec-item">
+            <span class="spec-label">Tipe Tag</span>
+            <span class="spec-value">NTAG213 / NTAG215</span>
           </div>
+          <div class="nfc-spec-item">
+            <span class="spec-label">Format</span>
+            <span class="spec-value">NDEF URI Record</span>
+          </div>
+          <div class="nfc-spec-item">
+            <span class="spec-label">Token ID</span>
+            <span class="spec-value token-value">${nfcToken || cardId}</span>
+          </div>
+        </div>
+        <div class="nfc-hint">
+          ${icons.help} Gunakan aplikasi NFC Writer (Android) atau NFC Tools untuk menulis link ke tag.
         </div>
       </div>
     </div>
-    <div class="modal-actions">
+    
+    <div class="modal-actions modal-actions-qr">
       <button class="btn btn-ghost" data-modal-close>Tutup</button>
       <button class="btn btn-secondary" data-download-qr="${serial}">
         ${icons.chart} Download QR
       </button>
       <button class="btn btn-primary" data-copy-link="activation-link">
-        ${icons.link} Salin Link
+        ${icons.link} Salin Link Aktivasi
       </button>
     </div>
   `);
@@ -412,22 +433,19 @@ function generateQrCode(url, serial) {
     container.innerHTML = '';
     new QRCode(container, {
       text: url,
-      width: 200,
-      height: 200,
+      width: 180,
+      height: 180,
       colorDark: '#000000',
       colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.M
     });
   } else {
-    // Fallback: Generate QR using canvas with simple pattern (or use API)
+    // Fallback: Generate QR using API
     container.innerHTML = `
-      <div class="qr-fallback">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}" 
-             alt="QR Code ${serial}" 
-             width="200" 
-             height="200"
-             onerror="this.parentElement.innerHTML='<div class=\\'qr-error\\'>${icons.qr}<p>Gagal memuat QR</p></div>'" />
-      </div>
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}&format=svg" 
+           alt="QR Code ${serial}" 
+           class="qr-image"
+           onerror="this.onerror=null;this.src='https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}';" />
     `;
   }
 }
