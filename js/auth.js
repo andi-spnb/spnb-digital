@@ -89,6 +89,30 @@ async function signUp(email, password, displayName, phone) {
   return { data, error };
 }
 
+// Sign up specifically for activation flow - redirects back to activation page with token
+async function signUpForActivation(email, password, displayName, phone, activationToken) {
+  const phoneE164 = phone ? normalizePhone(phone) : null;
+  const siteUrl = window.location.origin + window.location.pathname;
+  
+  // Redirect back to activation page with the same token
+  const redirectUrl = activationToken 
+    ? `${siteUrl}#/aktivasi?token=${activationToken}`
+    : `${siteUrl}#/login`;
+  
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { 
+        phone_e164: phoneE164, 
+        display_name: displayName 
+      },
+      emailRedirectTo: redirectUrl
+    }
+  });
+  return { data, error };
+}
+
 async function signInWithEmail(email, password) {
   const { data, error } = await supabaseClient.auth.signInWithPassword({
     email,

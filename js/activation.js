@@ -245,7 +245,9 @@ async function handleActivationRegister() {
   
   try {
     const displayName = a.displayName?.trim() || a.email.split('@')[0];
-    const { data, error } = await signUp(a.email, a.password, displayName, a.phone);
+    
+    // Use signUpForActivation with activation token in redirect URL
+    const { data, error } = await signUpForActivation(a.email, a.password, displayName, a.phone, a.token);
     
     if (error) {
       console.error('Registration error:', error);
