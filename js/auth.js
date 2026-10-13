@@ -30,25 +30,66 @@ async function initAuth() {
 async function loadUserData(user) {
   currentUser = user;
   
-  // Load account data
-  const { data: account } = await supabaseClient
-    .from('accounts')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
-  currentAccount = account;
-  
-  // Load roles
-  const { data: roles } = await supabaseClient
-    .from('account_roles')
-    .select('role')
-    .eq('user_id', user.id);
-  currentRoles = roles?.map(r => r.role) || [];
-  
-  console.log('User loaded:', currentAccount?.display_name, 'Roles:', currentRoles);
-  
-  // Load notifications in background
-  loadNotifications();
+  try {
+    // Load account data
+    const { data: account, error: accountError } = await supabaseClient
+      .from('accounts')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (accountError) {
+      console.warn('Could not load account:', accountError.message);
+      // Create a basic account object from auth user data
+      currentAccount = {
+        user_id: user.id,
+        display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+        phone_e164: user.user_metadata?.phone_e164 || null
+      };
+    } else if (!account) {
+      // Account doesn't exist, create basic one from auth data
+      currentAccount = {
+        user_id: user.id,
+        display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+        phone_e164: user.user_metadata?.phone_e164 || null
+      };
+      console.log('Account not found in database, using auth metadata');
+    } else {
+      currentAccount = account;
+    }
+    
+    // Load roles
+    const { data: roles, error: rolesError } = await supabaseClient
+      .from('account_roles')
+      .select('role')
+      .eq('user_id', user.id);
+    
+    if (rolesError) {
+      console.warn('Could not load roles:', rolesError.message);
+      currentRoles = ['owner']; // Default to owner role
+    } else {
+      currentRoles = roles?.map(r => r.role) || ['owner'];
+    }
+    
+    // If no roles, default to owner
+    if (currentRoles.length === 0) {
+      currentRoles = ['owner'];
+    }
+    
+    console.log('User loaded:', currentAccount?.display_name, 'Roles:', currentRoles);
+    
+    // Load notifications in background
+    loadNotifications();
+  } catch (e) {
+    console.error('loadUserData error:', e);
+    // Fallback to basic data
+    currentAccount = {
+      user_id: user.id,
+      display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+      phone_e164: user.user_metadata?.phone_e164 || null
+    };
+    currentRoles = ['owner'];
+  }
 }
 
 function clearUserData() {

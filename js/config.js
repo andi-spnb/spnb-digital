@@ -19,13 +19,16 @@ let authInitialized = false;
 // Check koneksi dan set flag
 async function checkSupabaseConnection() {
   try {
-    const { data, error } = await supabaseClient.from('accounts').select('user_id').limit(1);
+    // Try a simple auth check instead of querying accounts table
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    
     if (!error) {
       USE_REAL_DATA = true;
       console.log('✅ Connected to Supabase');
-    } else {
-      console.log('⚠️ Supabase tables not ready, using mock data');
+      return;
     }
+    
+    console.log('⚠️ Supabase auth check failed, using mock data');
   } catch (e) {
     console.log('⚠️ Supabase connection failed, using mock data');
   }
