@@ -17,6 +17,51 @@ function getActivationTokenFromUrl() {
   return urlParams.get('token');
 }
 
+// Get redirect info for a claimed card
+async function getClaimedCardRedirectInfo(token) {
+  try {
+    // Try to get card with business info
+    const { data: card, error } = await supabaseClient
+      .from('cards')
+      .select(`
+        id,
+        serial,
+        destination_mode,
+        business_id,
+        businesses (
+          id,
+          name,
+          google_review_url,
+          status,
+          business_slugs (slug, is_current)
+        )
+      `)
+      .or(`id.eq.${token},serial.eq.${token}`)
+      .maybeSingle();
+    
+    if (error || !card || !card.businesses) {
+      console.log('Could not get claimed card redirect info:', error?.message);
+      return null;
+    }
+    
+    const business = card.businesses;
+    const currentSlug = business.business_slugs?.find(s => s.is_current)?.slug;
+    
+    return {
+      cardId: card.id,
+      serial: card.serial,
+      businessId: business.id,
+      businessName: business.name,
+      destinationMode: card.destination_mode || 'direct_google',
+      googleReviewUrl: business.google_review_url,
+      slug: currentSlug
+    };
+  } catch (e) {
+    console.error('getClaimedCardRedirectInfo error:', e);
+    return null;
+  }
+}
+
 // Validate card token and get card info (calls Edge Function or RPC)
 async function validateCardToken(token) {
   if (!USE_REAL_DATA) {
@@ -33,10 +78,15 @@ async function validateCardToken(token) {
         claimSessionToken: 'demo-claim-session-token'
       };
     } else if (token === 'demo-claimed') {
+      // Card already claimed - return redirect info
       return {
         valid: false,
         error: 'already_claimed',
-        message: 'Kartu ini sudah diaktifkan oleh pemilik lain.'
+        message: 'Kartu ini sudah diaktifkan.',
+        redirectToDestination: true,
+        destinationMode: 'direct_google',
+        googleReviewUrl: 'https://g.page/r/demo/review',
+        slug: 'kopi-nusantara'
       };
     } else if (token === 'demo-not-sold') {
       return {
@@ -57,7 +107,57 @@ async function validateCardToken(token) {
   }
   
   try {
-    // Try using RPC function first (bypasses RLS)
+    // First, try using resolve_card_for_redirect RPC (handles both claimed and unclaimed)
+    try {
+      const { data: resolveData, error: resolveError } = await supabaseClient.rpc('resolve_card_for_redirect', {
+        p_token: token
+      });
+      
+      if (!resolveError && resolveData) {
+        console.log('RPC resolve_card_for_redirect result:', resolveData);
+        
+        // Card is already claimed - return redirect info
+        if (resolveData.valid === true) {
+          return {
+            valid: false,
+            error: 'already_claimed',
+            message: 'Kartu ini sudah diaktifkan.',
+            redirectToDestination: true,
+            cardId: resolveData.cardId,
+            serial: resolveData.serial,
+            businessId: resolveData.businessId,
+            businessName: resolveData.businessName,
+            destinationMode: resolveData.destinationMode,
+            googleReviewUrl: resolveData.googleReviewUrl,
+            slug: resolveData.slug
+          };
+        }
+        
+        // Card needs activation (not_active with redirect_to_activation flag)
+        if (resolveData.redirect_to_activation) {
+          return {
+            valid: true,
+            cardId: resolveData.card_id,
+            serial: resolveData.serial,
+            status: resolveData.lifecycle_state,
+            claimSessionToken: resolveData.card_id
+          };
+        }
+        
+        // Other errors (not_found, suspended, etc)
+        if (resolveData.valid === false) {
+          return {
+            valid: false,
+            error: resolveData.error,
+            message: resolveData.message
+          };
+        }
+      }
+    } catch (resolveEx) {
+      console.log('RPC resolve_card_for_redirect not available:', resolveEx.message);
+    }
+    
+    // Fallback: Try using validate_card_for_activation RPC
     try {
       const { data: rpcData, error: rpcError } = await supabaseClient.rpc('validate_card_for_activation', {
         p_token: token
@@ -66,6 +166,20 @@ async function validateCardToken(token) {
       if (!rpcError && rpcData) {
         console.log('RPC validate_card_for_activation result:', rpcData);
         if (rpcData.error) {
+          // If already_claimed, try to get redirect info
+          if (rpcData.error === 'already_claimed') {
+            // Try to get business info for redirect
+            const redirectInfo = await getClaimedCardRedirectInfo(token);
+            if (redirectInfo) {
+              return {
+                valid: false,
+                error: 'already_claimed',
+                message: 'Kartu ini sudah diaktifkan.',
+                redirectToDestination: true,
+                ...redirectInfo
+              };
+            }
+          }
           return {
             valid: false,
             error: rpcData.error,
@@ -142,6 +256,17 @@ async function validateCardToken(token) {
     
     // Check card status
     if (card.lifecycle_state === 'claimed' && card.owner_id) {
+      // Try to get redirect info for claimed card
+      const redirectInfo = await getClaimedCardRedirectInfo(token);
+      if (redirectInfo) {
+        return {
+          valid: false,
+          error: 'already_claimed',
+          message: 'Kartu ini sudah diaktifkan.',
+          redirectToDestination: true,
+          ...redirectInfo
+        };
+      }
       return {
         valid: false,
         error: 'already_claimed',
@@ -223,6 +348,31 @@ async function initActivationFlow() {
       a.step = 1;
     }
   } else {
+    // Check if card is already claimed and should redirect to destination
+    if (result.redirectToDestination && result.error === 'already_claimed') {
+      toast('Kartu sudah aktif. Mengalihkan...');
+      
+      // Redirect based on owner's destination mode
+      if (result.destinationMode === 'direct_google' && result.googleReviewUrl) {
+        // Direct redirect to Google Review
+        window.location.href = result.googleReviewUrl;
+        return;
+      } else if (result.destinationMode === 'profile' && result.slug) {
+        // Redirect to business profile page
+        go(`/p/${result.slug}`);
+        return;
+      } else if (result.googleReviewUrl) {
+        // Fallback to Google Review
+        window.location.href = result.googleReviewUrl;
+        return;
+      } else if (result.slug) {
+        // Fallback to profile
+        go(`/p/${result.slug}`);
+        return;
+      }
+      // If no valid destination, show error
+    }
+    
     a.cardStatus = result.error;
     a.errorMessage = result.message;
     a.step = 0; // Error state
