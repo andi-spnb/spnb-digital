@@ -14,6 +14,15 @@ function render() {
       initActivationFlow();
       return; // initActivationFlow will call render when done
     }
+    
+    // If user just logged in and still on step 2, advance to step 3
+    if (isLoggedIn() && a.step === 2 && a.cardStatus === 'valid') {
+      loadUserBusinesses().then(() => {
+        a.step = 3;
+        render();
+      });
+      return;
+    }
   }
   
   // Load data for dashboards if logged in
