@@ -41,13 +41,20 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   
   <!-- Application Scripts (order matters) -->
+  <!-- 1. Core: Config, State, Helpers -->
   <script src="js/config.js"></script>
   <script src="js/state.js"></script>
   <script src="js/helpers.js"></script>
+  
+  <!-- 2. UI Components -->
   <script src="js/ui.js"></script>
   <script src="js/router.js"></script>
+  
+  <!-- 3. Auth & API -->
   <script src="js/auth.js"></script>
   <script src="js/api.js"></script>
+  
+  <!-- 4. Features -->
   <script src="js/activation.js"></script>
   <script src="js/stats.js"></script>
   <script src="js/export.js"></script>
@@ -56,6 +63,8 @@
   <script src="js/image-upload.js"></script>
   <script src="js/modals.js"></script>
   <script src="js/scanner.js"></script>
+  
+  <!-- 5. Pages (depends on all above) -->
   <script src="js/pages-public.js"></script>
   <script src="js/pages-auth.js"></script>
   <script src="js/pages-dashboard.js"></script>
@@ -63,6 +72,8 @@
   <script src="js/pages-reseller.js"></script>
   <script src="js/pages-admin.js"></script>
   <script src="js/pages-profile.js"></script>
+  
+  <!-- 6. Events & Render (must be last) -->
   <script src="js/events.js"></script>
   <script src="js/render.js"></script>
 </body>

@@ -274,7 +274,7 @@ function homePageV2() {
               <dl><div><dt>Setelah tap / scan</dt><dd>Profil usaha milik owner terbuka</dd></div><div><dt>Isi halaman</dt><dd>Rating, WhatsApp, lokasi, sosial media</dd></div><div><dt>Alamat halaman</dt><dd>Slug nama usaha yang dapat diubah</dd></div></dl>
             </article>
           </div>
-          <div class="inline-actions"><button class="btn btn-secondary" data-route="/profil">Lihat contoh profil bisnis</button><button class="btn btn-ghost" data-route="/owner">Lihat dashboard owner</button></div>
+          <div class="inline-actions"><button class="btn btn-secondary" data-route="/profil">Lihat contoh profil bisnis</button><button class="btn btn-primary" data-route="/login">Masuk ke Dashboard</button></div>
         </div>
       </section>
 

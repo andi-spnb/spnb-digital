@@ -16,7 +16,7 @@ root.addEventListener("click", (event) => {
     return;
   }
 
-  if (event.target.closest("[data-mobile-menu]")) { state.mobileMenu = !state.mobileMenu; root.innerHTML = homePage(); return; }
+  if (event.target.closest("[data-mobile-menu]")) { state.mobileMenu = !state.mobileMenu; root.innerHTML = homePageV2(); return; }
   if (event.target.closest("[data-sidebar]")) { 
     const sidebar = document.getElementById("sidebar");
     const overlay = document.getElementById("sidebarOverlay");
