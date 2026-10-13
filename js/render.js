@@ -51,7 +51,7 @@ function render() {
 function renderPage(route) {
   if (route === "/") root.innerHTML = homePageV2();
   else if (route === "/login") root.innerHTML = loginPage();
-  else if (route === "/aktivasi") root.innerHTML = activationPage();
+  else if (route === "/aktivasi" || route.startsWith("/aktivasi?")) root.innerHTML = activationPage();
   else if (route === "/profil") root.innerHTML = publicProfilePage();
   else if (route.startsWith("/p/")) root.innerHTML = dynamicProfilePage(route.replace("/p/", ""));
   else if (route.startsWith("/c/")) { handleCardRedirect(route.replace("/c/", "")); return; }

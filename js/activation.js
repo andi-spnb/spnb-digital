@@ -4,9 +4,16 @@
  * user registration/login, business creation, and card claiming.
  */
 
-// Parse token from URL query string
+// Parse token from URL hash query string
 function getActivationTokenFromUrl() {
-  const urlParams = new URLSearchParams(window.location.search);
+  // Token is in hash: #/aktivasi?token=xxx
+  const hash = window.location.hash || '';
+  const queryIndex = hash.indexOf('?');
+  
+  if (queryIndex === -1) return null;
+  
+  const queryString = hash.substring(queryIndex + 1);
+  const urlParams = new URLSearchParams(queryString);
   return urlParams.get('token');
 }
 
