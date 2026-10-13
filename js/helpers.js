@@ -113,7 +113,10 @@ async function loadAdminDashboardData() {
       .from('cards')
       .select('lifecycle_state');
     
-    return { cards, resellers, cardStats };
+    // Load owners
+    const owners = await getAllOwners();
+    
+    return { cards, resellers, cardStats, owners };
   } catch (e) {
     console.error('Error loading admin data:', e);
     return null;

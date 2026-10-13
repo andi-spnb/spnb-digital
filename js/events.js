@@ -269,6 +269,60 @@ root.addEventListener("click", (event) => {
     return;
   }
 
+  // View reseller detail
+  const viewReseller = event.target.closest("[data-view-reseller]");
+  if (viewReseller) {
+    const resellerId = viewReseller.dataset.viewReseller;
+    handleViewReseller(resellerId);
+    return;
+  }
+
+  // Toggle reseller status
+  const toggleResellerStatus = event.target.closest("[data-toggle-reseller-status]");
+  if (toggleResellerStatus) {
+    const resellerId = toggleResellerStatus.dataset.toggleResellerStatus;
+    const newStatus = toggleResellerStatus.dataset.status;
+    handleToggleResellerStatus(resellerId, newStatus);
+    return;
+  }
+
+  // View owner detail
+  const viewOwner = event.target.closest("[data-view-owner]");
+  if (viewOwner) {
+    const ownerId = viewOwner.dataset.viewOwner;
+    handleViewOwner(ownerId);
+    return;
+  }
+
+  // Card action menu
+  const cardMenu = event.target.closest("[data-card-menu]");
+  if (cardMenu) {
+    const cardId = cardMenu.dataset.cardMenu;
+    handleCardMenu(cardId);
+    return;
+  }
+
+  // Block card
+  const blockCard = event.target.closest("[data-block-card]");
+  if (blockCard) {
+    handleBlockCard(blockCard.dataset.blockCard);
+    return;
+  }
+
+  // Unblock card
+  const unblockCard = event.target.closest("[data-unblock-card]");
+  if (unblockCard) {
+    handleUnblockCard(unblockCard.dataset.unblockCard);
+    return;
+  }
+
+  // Reset card to admin stock
+  const resetCard = event.target.closest("[data-reset-card]");
+  if (resetCard) {
+    handleResetCard(resetCard.dataset.resetCard);
+    return;
+  }
+
   // Save business profile
   if (event.target.closest("[data-save-profile]")) {
     handleSaveBusinessProfile();

@@ -115,3 +115,54 @@ async function allocateCardsToReseller(cardIds, resellerId, note) {
   });
   return { data, error };
 }
+
+// Get all owners (for admin)
+async function getAllOwners() {
+  if (!USE_REAL_DATA) return [];
+  
+  try {
+    // Get accounts with owner role
+    const { data: accounts, error } = await supabaseClient
+      .from('accounts')
+      .select(`
+        user_id,
+        display_name,
+        phone_e164,
+        created_at,
+        account_roles (role)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Get owners error:', error);
+      return [];
+    }
+    
+    // Filter to only owners
+    const owners = accounts?.filter(a => 
+      a.account_roles?.some(r => r.role === 'owner')
+    ) || [];
+    
+    // Get business and card counts for each owner
+    for (const owner of owners) {
+      const { data: businesses } = await supabaseClient
+        .from('businesses')
+        .select('id')
+        .eq('owner_id', owner.user_id);
+      owner.businessCount = businesses?.length || 0;
+      
+      const { data: cards } = await supabaseClient
+        .from('cards')
+        .select('id')
+        .eq('owner_id', owner.user_id);
+      owner.cardCount = cards?.length || 0;
+      
+      owner.status = 'active';
+    }
+    
+    return owners;
+  } catch (e) {
+    console.error('getAllOwners exception:', e);
+    return [];
+  }
+}

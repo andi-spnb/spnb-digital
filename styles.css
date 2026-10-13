@@ -1949,3 +1949,169 @@ label { color: #334b69; font-size: 11px; font-weight: 800; }
     height: 200px;
   }
 }
+
+/* Modal Detail Styles */
+.reseller-detail-content,
+.owner-detail-content,
+.card-action-content {
+  margin: 20px 0;
+}
+
+.reseller-detail-header,
+.owner-detail-header,
+.card-action-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.reseller-avatar-lg,
+.owner-avatar-lg {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--blue-600), var(--blue-800));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.card-icon-lg {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: var(--blue-50);
+  color: var(--blue-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-icon-lg .svg-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.reseller-detail-header h3,
+.owner-detail-header h3,
+.card-action-header h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.reseller-detail-header p,
+.owner-detail-header p,
+.card-action-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.reseller-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.stat-box {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--soft);
+  text-align: center;
+}
+
+.stat-box strong {
+  display: block;
+  font-size: 24px;
+  color: var(--blue-700);
+}
+
+.stat-box span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.reseller-detail-info,
+.owner-detail-info,
+.card-action-info {
+  margin: 16px 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row span {
+  color: var(--muted);
+}
+
+.info-row strong {
+  color: var(--text);
+  word-break: break-all;
+}
+
+.owner-businesses {
+  margin-top: 20px;
+}
+
+.owner-businesses h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.business-list {
+  display: grid;
+  gap: 10px;
+}
+
+.business-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--soft);
+}
+
+.business-logo-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.business-item strong {
+  display: block;
+  font-size: 13px;
+}
+
+.business-item small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.card-action-buttons {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0;
+}

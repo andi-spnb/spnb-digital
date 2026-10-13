@@ -87,3 +87,143 @@ function resetModal(owner) {
 function sellModal(cardId, serial) {
   openModal(`<div class="row-between"><div><h2>Tandai Sebagai Terjual?</h2><p>Kartu ${serial} akan dibuka untuk proses aktivasi.</p></div><button class="icon-btn" data-modal-close>${icons.close}</button></div><div style="padding:16px;border:1px solid var(--blue-200);border-radius:13px;background:var(--blue-50);font-size:12px;color:var(--blue-800)"><b>Penting:</b> Setelah dikonfirmasi, kartu dapat diklaim oleh orang pertama yang memindai QR. Tidak ada data pembeli yang perlu diisi.</div><div class="modal-actions"><button class="btn btn-ghost" data-modal-close>Batal</button><button class="btn btn-primary" data-confirm-sell="${cardId}" data-serial="${serial}">Ya, Tandai Terjual</button></div>`);
 }
+
+// Modal detail reseller
+function resellerDetailModal(reseller) {
+  const r = reseller || {};
+  const stockCount = r.stockCount || 0;
+  const soldCount = r.soldCount || 0;
+  const activeCount = r.activeCount || 0;
+  
+  openModal(`
+    <div class="row-between">
+      <div><h2>Detail Reseller</h2><p>${r.name || 'Reseller'}</p></div>
+      <button class="icon-btn" data-modal-close>${icons.close}</button>
+    </div>
+    <div class="reseller-detail-content">
+      <div class="reseller-detail-header">
+        <div class="reseller-avatar-lg">${(r.name || 'R').substring(0, 2).toUpperCase()}</div>
+        <div>
+          <h3>${r.name || '-'}</h3>
+          <p>${r.city || '-'} · ${r.phone_e164 || '-'}</p>
+          ${statusBadge(r.status || 'active')}
+        </div>
+      </div>
+      <div class="reseller-detail-stats">
+        <div class="stat-box">
+          <strong>${stockCount}</strong>
+          <span>Stok</span>
+        </div>
+        <div class="stat-box">
+          <strong>${soldCount}</strong>
+          <span>Terjual</span>
+        </div>
+        <div class="stat-box">
+          <strong>${activeCount}</strong>
+          <span>Aktif</span>
+        </div>
+      </div>
+      <div class="reseller-detail-info">
+        <div class="info-row"><span>ID</span><strong>${r.id || '-'}</strong></div>
+        <div class="info-row"><span>Bergabung</span><strong>${formatDate(r.created_at) || '-'}</strong></div>
+        <div class="info-row"><span>Email</span><strong>${r.email || '-'}</strong></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close>Tutup</button>
+      ${r.status === 'active' 
+        ? `<button class="btn btn-secondary" data-toggle-reseller-status="${r.id}" data-status="inactive">${icons.close} Nonaktifkan</button>`
+        : `<button class="btn btn-primary" data-toggle-reseller-status="${r.id}" data-status="active">${icons.check} Aktifkan</button>`
+      }
+    </div>
+  `);
+}
+
+// Modal detail owner
+function ownerDetailModal(owner) {
+  const o = owner || {};
+  
+  openModal(`
+    <div class="row-between">
+      <div><h2>Detail Owner</h2><p>${o.display_name || 'Owner'}</p></div>
+      <button class="icon-btn" data-modal-close>${icons.close}</button>
+    </div>
+    <div class="owner-detail-content">
+      <div class="owner-detail-header">
+        <div class="owner-avatar-lg">${(o.display_name || 'O').substring(0, 2).toUpperCase()}</div>
+        <div>
+          <h3>${o.display_name || '-'}</h3>
+          <p>${o.phone_e164 || '-'}</p>
+          ${statusBadge(o.status || 'active')}
+        </div>
+      </div>
+      <div class="owner-detail-info">
+        <div class="info-row"><span>User ID</span><strong style="font-size:11px">${o.user_id || '-'}</strong></div>
+        <div class="info-row"><span>Bergabung</span><strong>${formatDate(o.created_at) || '-'}</strong></div>
+        <div class="info-row"><span>Profil Usaha</span><strong>${o.businessCount || 0} profil</strong></div>
+        <div class="info-row"><span>Kartu Aktif</span><strong>${o.cardCount || 0} kartu</strong></div>
+      </div>
+      ${o.businesses && o.businesses.length > 0 ? `
+        <div class="owner-businesses">
+          <h4>Profil Usaha</h4>
+          <div class="business-list">
+            ${o.businesses.map(b => `
+              <div class="business-item">
+                <div class="business-logo-sm" style="background:${b.theme_color || '#1769c2'}">${(b.name || 'B').substring(0, 2).toUpperCase()}</div>
+                <div>
+                  <strong>${b.name}</strong>
+                  <small>${b.slug || '-'}</small>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close>Tutup</button>
+      <button class="btn btn-secondary" data-reset-modal="${o.display_name}">${icons.help} Reset Password</button>
+    </div>
+  `);
+}
+
+// Modal aksi kartu (admin)
+function cardActionModal(card) {
+  const c = card || {};
+  const isBlocked = c.service_state === 'blocked' || c.status === 'blocked';
+  
+  openModal(`
+    <div class="row-between">
+      <div><h2>Aksi Kartu</h2><p>${c.serial || 'Kartu'}</p></div>
+      <button class="icon-btn" data-modal-close>${icons.close}</button>
+    </div>
+    <div class="card-action-content">
+      <div class="card-action-header">
+        <div class="card-icon-lg">${icons.card}</div>
+        <div>
+          <h3>${c.serial || '-'}</h3>
+          <p>${statusBadge(c.status || c.lifecycle_state || 'stock')}</p>
+        </div>
+      </div>
+      <div class="card-action-info">
+        <div class="info-row"><span>ID</span><strong style="font-size:11px">${c.id || '-'}</strong></div>
+        <div class="info-row"><span>Reseller</span><strong>${c.reseller || '-'}</strong></div>
+        <div class="info-row"><span>Owner</span><strong>${c.owner || '-'}</strong></div>
+        <div class="info-row"><span>Tujuan</span><strong>${c.destination_mode === 'profile' ? 'Profil Bisnis' : 'Google Rating'}</strong></div>
+        <div class="info-row"><span>Dibuat</span><strong>${formatDate(c.created_at) || '-'}</strong></div>
+      </div>
+    </div>
+    <div class="card-action-buttons">
+      ${isBlocked 
+        ? `<button class="btn btn-primary btn-block" data-unblock-card="${c.id}">${icons.check} Aktifkan Kembali</button>`
+        : `<button class="btn btn-secondary btn-block" data-block-card="${c.id}">${icons.close} Blokir Kartu</button>`
+      }
+      ${c.lifecycle_state === 'claimed' ? `
+        <button class="btn btn-ghost btn-block" data-reset-card="${c.id}">${icons.help} Reset ke Stok Admin</button>
+      ` : ''}
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close>Tutup</button>
+    </div>
+  `);
+}

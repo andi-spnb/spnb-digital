@@ -378,3 +378,286 @@ async function handleCreateReseller() {
     toast('Terjadi kesalahan. Silakan coba lagi.');
   }
 }
+
+// Handle view reseller detail
+async function handleViewReseller(resellerId) {
+  if (!resellerId) return;
+  
+  // Find reseller from state
+  let reseller = state.adminData?.resellers?.find(r => r.id === resellerId);
+  
+  if (!reseller && USE_REAL_DATA) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('resellers')
+        .select('*')
+        .eq('id', resellerId)
+        .single();
+      
+      if (!error && data) {
+        reseller = data;
+      }
+    } catch (e) {
+      console.error('Fetch reseller error:', e);
+    }
+  }
+  
+  if (!reseller) {
+    // Use mock data
+    reseller = {
+      id: resellerId,
+      name: 'Reseller Demo',
+      city: 'Jakarta',
+      phone_e164: '+628123456789',
+      status: 'active',
+      created_at: new Date().toISOString()
+    };
+  }
+  
+  // Calculate stats
+  const cards = state.adminData?.cards || [];
+  reseller.stockCount = cards.filter(c => c.assigned_reseller_id === resellerId && c.lifecycle_state === 'reseller_stock').length;
+  reseller.soldCount = cards.filter(c => c.assigned_reseller_id === resellerId && c.lifecycle_state === 'sold_unclaimed').length;
+  reseller.activeCount = cards.filter(c => c.assigned_reseller_id === resellerId && c.lifecycle_state === 'claimed').length;
+  
+  resellerDetailModal(reseller);
+}
+
+// Handle toggle reseller status
+async function handleToggleResellerStatus(resellerId, newStatus) {
+  if (!resellerId) return;
+  
+  try {
+    toast('Memproses...');
+    
+    if (USE_REAL_DATA) {
+      const { error } = await supabaseClient
+        .from('resellers')
+        .update({ status: newStatus })
+        .eq('id', resellerId);
+      
+      if (error) {
+        toast('Gagal mengubah status: ' + error.message);
+        return;
+      }
+    }
+    
+    closeModal();
+    state.adminData = await loadAdminDashboardData();
+    render();
+    toast(`Status reseller berhasil diubah ke ${newStatus === 'active' ? 'aktif' : 'nonaktif'}.`);
+  } catch (e) {
+    console.error('Toggle reseller status error:', e);
+    toast('Terjadi kesalahan.');
+  }
+}
+
+// Handle view owner detail
+async function handleViewOwner(ownerId) {
+  if (!ownerId) return;
+  
+  let owner = null;
+  
+  if (USE_REAL_DATA) {
+    try {
+      // Fetch owner with businesses
+      const { data: account, error } = await supabaseClient
+        .from('accounts')
+        .select(`
+          *,
+          businesses (id, name, theme_color, business_slugs (slug, is_current))
+        `)
+        .eq('user_id', ownerId)
+        .single();
+      
+      if (!error && account) {
+        owner = account;
+        owner.businessCount = account.businesses?.length || 0;
+        
+        // Count cards
+        const { data: cards } = await supabaseClient
+          .from('cards')
+          .select('id')
+          .eq('owner_id', ownerId);
+        owner.cardCount = cards?.length || 0;
+        
+        // Format businesses with slugs
+        owner.businesses = account.businesses?.map(b => ({
+          ...b,
+          slug: b.business_slugs?.find(s => s.is_current)?.slug || '-'
+        }));
+      }
+    } catch (e) {
+      console.error('Fetch owner error:', e);
+    }
+  }
+  
+  if (!owner) {
+    // Use mock data
+    owner = {
+      user_id: ownerId,
+      display_name: 'Owner Demo',
+      phone_e164: '+628123456789',
+      status: 'active',
+      created_at: new Date().toISOString(),
+      businessCount: 2,
+      cardCount: 3,
+      businesses: [
+        { name: 'Bisnis Demo 1', theme_color: '#1769c2', slug: 'bisnis-demo-1' },
+        { name: 'Bisnis Demo 2', theme_color: '#e91e63', slug: 'bisnis-demo-2' }
+      ]
+    };
+  }
+  
+  ownerDetailModal(owner);
+}
+
+// Handle card menu (show card action modal)
+async function handleCardMenu(cardId) {
+  if (!cardId) return;
+  
+  let card = null;
+  
+  // Find card from state
+  if (state.adminData?.cards) {
+    card = state.adminData.cards.find(c => c.id === cardId || c.serial === cardId);
+  }
+  
+  if (!card && USE_REAL_DATA) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('cards')
+        .select(`
+          *,
+          resellers (name),
+          accounts (display_name)
+        `)
+        .or(`id.eq.${cardId},serial.eq.${cardId}`)
+        .single();
+      
+      if (!error && data) {
+        card = {
+          ...data,
+          reseller: data.resellers?.name || '-',
+          owner: data.accounts?.display_name || '-',
+          status: mapCardStatus(data.lifecycle_state)
+        };
+      }
+    } catch (e) {
+      console.error('Fetch card error:', e);
+    }
+  }
+  
+  if (!card) {
+    // Use mock data
+    card = {
+      id: cardId,
+      serial: cardId,
+      status: 'stock',
+      lifecycle_state: 'admin_stock',
+      destination_mode: 'direct_google',
+      reseller: '-',
+      owner: '-',
+      created_at: new Date().toISOString()
+    };
+  }
+  
+  cardActionModal(card);
+}
+
+// Handle block card
+async function handleBlockCard(cardId) {
+  if (!cardId) return;
+  
+  try {
+    toast('Memblokir kartu...');
+    
+    if (USE_REAL_DATA) {
+      const { error } = await supabaseClient
+        .from('cards')
+        .update({ service_state: 'blocked' })
+        .eq('id', cardId);
+      
+      if (error) {
+        toast('Gagal memblokir: ' + error.message);
+        return;
+      }
+    }
+    
+    closeModal();
+    state.adminData = await loadAdminDashboardData();
+    render();
+    toast('Kartu berhasil diblokir.');
+  } catch (e) {
+    console.error('Block card error:', e);
+    toast('Terjadi kesalahan.');
+  }
+}
+
+// Handle unblock card
+async function handleUnblockCard(cardId) {
+  if (!cardId) return;
+  
+  try {
+    toast('Mengaktifkan kartu...');
+    
+    if (USE_REAL_DATA) {
+      const { error } = await supabaseClient
+        .from('cards')
+        .update({ service_state: 'enabled' })
+        .eq('id', cardId);
+      
+      if (error) {
+        toast('Gagal mengaktifkan: ' + error.message);
+        return;
+      }
+    }
+    
+    closeModal();
+    state.adminData = await loadAdminDashboardData();
+    render();
+    toast('Kartu berhasil diaktifkan kembali.');
+  } catch (e) {
+    console.error('Unblock card error:', e);
+    toast('Terjadi kesalahan.');
+  }
+}
+
+// Handle reset card to admin stock
+async function handleResetCard(cardId) {
+  if (!cardId) return;
+  
+  if (!confirm('Yakin ingin mereset kartu ini ke stok admin? Owner akan kehilangan akses ke kartu ini.')) {
+    return;
+  }
+  
+  try {
+    toast('Mereset kartu...');
+    
+    if (USE_REAL_DATA) {
+      const { error } = await supabaseClient
+        .from('cards')
+        .update({ 
+          lifecycle_state: 'admin_stock',
+          owner_id: null,
+          assigned_reseller_id: null,
+          claimed_at: null,
+          business_id: null
+        })
+        .eq('id', cardId);
+      
+      if (error) {
+        toast('Gagal mereset: ' + error.message);
+        return;
+      }
+    }
+    
+    closeModal();
+    state.adminData = await loadAdminDashboardData();
+    render();
+    toast('Kartu berhasil direset ke stok admin.');
+  } catch (e) {
+    console.error('Reset card error:', e);
+    toast('Terjadi kesalahan.');
+  }
+}

@@ -296,14 +296,17 @@ function adminStockPage() {
 }
 
 function adminResellerPage() {
+  const resellers = state.adminData?.resellers || [];
+  const cards = state.adminData?.cards || [];
+  
   const content = `
     <div class="toolbar">
       <div class="filters">
-        <div class="search-box"><input placeholder="Cari reseller..." /></div>
-        <select class="select">
-          <option>Semua Status</option>
-          <option>Aktif</option>
-          <option>Nonaktif</option>
+        <div class="search-box"><input placeholder="Cari reseller..." id="reseller-search" /></div>
+        <select class="select" id="reseller-status-filter">
+          <option value="">Semua Status</option>
+          <option value="active">Aktif</option>
+          <option value="inactive">Nonaktif</option>
         </select>
       </div>
       <div class="toolbar-actions">
@@ -313,18 +316,24 @@ function adminResellerPage() {
     </div>
     
     <div class="reseller-grid">
-      ${resellerCard("RB", "Reseller Bandung", "Bandung", "24", "87")}
-      ${resellerCard("RJ", "Reseller Jakarta", "Jakarta", "31", "104")}
-      ${resellerCard("RS", "Reseller Surabaya", "Surabaya", "18", "65")}
-      ${resellerCard("RY", "Reseller Yogyakarta", "Yogyakarta", "12", "48")}
-      ${resellerCard("RM", "Reseller Makassar", "Makassar", "27", "72")}
-      ${resellerCard("RSM", "Reseller Semarang", "Semarang", "22", "41")}
+      ${resellers.length === 0 ? `
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">
+          <p>Belum ada reseller.</p>
+          <button class="btn btn-primary" style="margin-top:16px" data-reseller-modal>${icons.plus} Tambah Reseller Pertama</button>
+        </div>
+      ` : resellers.map(r => {
+        const stockCount = cards.filter(c => c.assigned_reseller_id === r.id && c.lifecycle_state === 'reseller_stock').length;
+        const soldCount = cards.filter(c => c.assigned_reseller_id === r.id && c.lifecycle_state === 'sold_unclaimed').length;
+        const activeCount = cards.filter(c => c.assigned_reseller_id === r.id && c.lifecycle_state === 'claimed').length;
+        const initial = r.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+        return resellerCard(initial, r.name, r.city || '-', stockCount, soldCount + activeCount, r.id);
+      }).join('')}
     </div>`;
   
   return appShell("admin", "Reseller", "Kelola akun dan pantau performa reseller.", content);
 }
 
-function resellerCard(initial, name, city, stock, sold) {
+function resellerCard(initial, name, city, stock, sold, resellerId) {
   return `
     <article class="reseller-card">
       <div class="reseller-card-header">
@@ -347,26 +356,33 @@ function resellerCard(initial, name, city, stock, sold) {
           <span>Aktif</span>
         </div>
       </div>
-      <button class="btn btn-secondary btn-block btn-sm" data-demo-toast="Detail ${name}">Lihat Detail</button>
+      <button class="btn btn-secondary btn-block btn-sm" data-view-reseller="${resellerId || name}">Lihat Detail</button>
     </article>`;
 }
 
 function adminOwnerPage() {
-  const owners = [
-    ["Budi Santoso", "0812••••7890", "2", "3", "12 Okt 2026", "active"],
-    ["Siti Rahma", "0857••••2210", "1", "2", "11 Okt 2026", "active"],
-    ["Deni Kurnia", "0813••••3021", "1", "1", "8 Okt 2026", "active"],
-    ["Maya Putri", "0821••••7742", "3", "5", "4 Okt 2026", "active"],
-  ];
+  // Get owners from real data or use mock
+  let owners = [];
+  
+  if (state.adminData?.owners) {
+    owners = state.adminData.owners;
+  } else {
+    owners = [
+      { user_id: "1", display_name: "Budi Santoso", phone_e164: "0812••••7890", businessCount: 2, cardCount: 3, created_at: "2026-10-12", status: "active" },
+      { user_id: "2", display_name: "Siti Rahma", phone_e164: "0857••••2210", businessCount: 1, cardCount: 2, created_at: "2026-10-11", status: "active" },
+      { user_id: "3", display_name: "Deni Kurnia", phone_e164: "0813••••3021", businessCount: 1, cardCount: 1, created_at: "2026-10-08", status: "active" },
+      { user_id: "4", display_name: "Maya Putri", phone_e164: "0821••••7742", businessCount: 3, cardCount: 5, created_at: "2026-10-04", status: "active" },
+    ];
+  }
   
   const content = `
     <div class="toolbar">
       <div class="filters">
-        <div class="search-box"><input placeholder="Cari nama atau nomor HP..." /></div>
-        <select class="select">
-          <option>Semua Status</option>
-          <option>Aktif</option>
-          <option>Diblokir</option>
+        <div class="search-box"><input placeholder="Cari nama atau nomor HP..." id="owner-search" /></div>
+        <select class="select" id="owner-status-filter">
+          <option value="">Semua Status</option>
+          <option value="active">Aktif</option>
+          <option value="blocked">Diblokir</option>
         </select>
       </div>
     </div>
@@ -384,17 +400,19 @@ function adminOwnerPage() {
           </tr>
         </thead>
         <tbody>
-          ${owners.map(o => `
+          ${owners.length === 0 ? `
+            <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Belum ada owner.</td></tr>
+          ` : owners.map(o => `
             <tr>
-              <td><strong>${o[0]}</strong></td>
-              <td>${o[1]}</td>
-              <td>${o[2]} profil</td>
-              <td>${o[3]} kartu</td>
-              <td>${o[4]}</td>
-              <td>
+              <td data-label="Owner"><strong>${o.display_name || '-'}</strong></td>
+              <td data-label="Nomor HP">${o.phone_e164 ? maskPhone(o.phone_e164) : '-'}</td>
+              <td data-label="Profil">${o.businessCount || 0} profil</td>
+              <td data-label="Kartu">${o.cardCount || 0} kartu</td>
+              <td data-label="Bergabung">${formatDate(o.created_at)}</td>
+              <td data-label="Tindakan">
                 <div class="btn-group">
-                  <button class="btn btn-secondary btn-sm" data-reset-modal="${o[0]}">${icons.refresh} Reset</button>
-                  <button class="btn btn-ghost btn-sm" data-demo-toast="Detail ${o[0]}">Detail</button>
+                  <button class="btn btn-secondary btn-sm" data-reset-modal="${o.display_name}">${icons.help} Reset</button>
+                  <button class="btn btn-ghost btn-sm" data-view-owner="${o.user_id}">Detail</button>
                 </div>
               </td>
             </tr>`).join("")}
