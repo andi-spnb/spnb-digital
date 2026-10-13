@@ -13,6 +13,21 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="styles-v2.css" />
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    // Fallback jika Supabase gagal load
+    if (!window.supabase) {
+      window.supabase = {
+        createClient: function() {
+          return {
+            from: function() { return { select: function() { return { limit: function() { return Promise.resolve({ data: null, error: true }); }, eq: function() { return this; }, single: function() { return Promise.resolve({ data: null }); }, order: function() { return this; }, in: function() { return this; } }; } }; },
+            auth: { getSession: function() { return Promise.resolve({ data: { session: null } }); }, onAuthStateChange: function() {}, signUp: function() { return Promise.resolve({ data: null, error: { message: 'Supabase not loaded' } }); }, signInWithPassword: function() { return Promise.resolve({ data: null, error: { message: 'Supabase not loaded' } }); }, signOut: function() { return Promise.resolve({}); }, getUser: function() { return Promise.resolve({ data: { user: null } }); }, updateUser: function() { return Promise.resolve({ error: { message: 'Supabase not loaded' } }); } },
+            rpc: function() { return Promise.resolve({ data: null, error: true }); }
+          };
+        }
+      };
+      console.warn('⚠️ Supabase library tidak tersedia, menggunakan mode offline');
+    }
+  </script>
   <script src="supabase-config.js"></script>
 </head>
 <body>
