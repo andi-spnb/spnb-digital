@@ -264,3 +264,50 @@ function bulkDistributeModal() {
     </div>
   `);
 }
+
+// Modal detail kartu (reseller view)
+function cardDetailModal(card) {
+  const c = card || {};
+  const statusLabel = {
+    'stock': 'Stok Tersedia',
+    'sold': 'Terjual (Menunggu Aktivasi)',
+    'active': 'Sudah Aktif'
+  };
+  
+  openModal(`
+    <div class="row-between">
+      <div><h2>Detail Kartu</h2><p>${c.serial || 'Kartu'}</p></div>
+      <button class="icon-btn" data-modal-close>${icons.close}</button>
+    </div>
+    <div class="card-detail-content">
+      <div class="card-detail-header">
+        <div class="card-icon-lg">${icons.card}</div>
+        <div>
+          <h3>${c.serial || '-'}</h3>
+          <p>${statusBadge(c.status || 'stock')}</p>
+        </div>
+      </div>
+      <div class="card-detail-info">
+        <div class="info-row"><span>Status</span><strong>${statusLabel[c.status] || c.status || '-'}</strong></div>
+        <div class="info-row"><span>Mode Tujuan</span><strong>${c.destination_mode === 'profile' ? 'Profil Bisnis' : 'Google Rating Langsung'}</strong></div>
+        ${c.allocated_at ? `<div class="info-row"><span>Diterima</span><strong>${formatDate(c.allocated_at)}</strong></div>` : ''}
+        ${c.sold_at ? `<div class="info-row"><span>Ditandai Terjual</span><strong>${formatDate(c.sold_at)}</strong></div>` : ''}
+        ${c.claimed_at ? `<div class="info-row"><span>Diaktifkan</span><strong>${formatDate(c.claimed_at)}</strong></div>` : ''}
+        ${c.date && !c.allocated_at && !c.sold_at && !c.claimed_at ? `<div class="info-row"><span>Tanggal</span><strong>${c.date}</strong></div>` : ''}
+      </div>
+      ${c.status === 'active' ? `
+        <div class="info-box" style="margin-top:16px">
+          ${icons.check}
+          <div>
+            <strong>Kartu Sudah Aktif</strong>
+            <p>Kartu ini sudah diklaim dan diaktifkan oleh owner. Tidak ada tindakan yang diperlukan.</p>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close>Tutup</button>
+      ${c.status === 'sold' ? `<button class="btn btn-secondary" data-unsell-card="${c.id}" data-serial="${c.serial}" data-modal-close>Batalkan Penjualan</button>` : ''}
+    </div>
+  `);
+}

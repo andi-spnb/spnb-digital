@@ -15,7 +15,7 @@ function resellerPage(route) {
       </div>
       <div class="workbench-actions">
         <button class="btn btn-primary" data-route="/reseller/kartu">${icons.card} Lihat Stok</button>
-        <button class="btn btn-secondary" data-demo-toast="Kamera pemindai dibuka.">${icons.qr} Scan Kartu</button>
+        <button class="btn btn-secondary" data-open-scanner>${icons.qr} Scan Kartu</button>
       </div>
     </section>
     
@@ -142,7 +142,7 @@ function resellerCardsPage() {
       </div>
       <div class="toolbar-actions">
         <button class="btn btn-ghost btn-sm" data-export-reseller-sales>${icons.chart} Export</button>
-        <button class="btn btn-secondary" data-demo-toast="Kamera pemindai dibuka.">${icons.qr} Scan Kartu</button>
+        <button class="btn btn-secondary" data-open-scanner>${icons.qr} Scan Kartu</button>
       </div>
     </div>
     

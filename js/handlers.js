@@ -72,6 +72,56 @@ async function handleUnsellCard(cardId, serial) {
   }
 }
 
+// Handle view card detail (reseller)
+async function handleViewCardDetail(cardId, serial) {
+  let card = null;
+  
+  // Find card from reseller inventory
+  if (state.resellerData?.inventory) {
+    card = state.resellerData.inventory.find(c => c.card_id === cardId || c.serial === serial);
+    if (card) {
+      card = {
+        id: card.card_id,
+        serial: card.serial,
+        status: mapCardStatus(card.lifecycle_state),
+        lifecycle_state: card.lifecycle_state,
+        destination_mode: card.destination_mode || 'direct_google',
+        allocated_at: card.allocated_at,
+        sold_at: card.sold_at,
+        claimed_at: card.claimed_at
+      };
+    }
+  }
+  
+  // Try mock data
+  if (!card && state.resellerCards) {
+    card = state.resellerCards.find(c => c.serial === serial || c.serial === cardId);
+    if (card) {
+      card = {
+        id: card.id || cardId,
+        serial: card.serial,
+        status: card.status,
+        lifecycle_state: card.status === 'active' ? 'claimed' : card.status === 'sold' ? 'sold_unclaimed' : 'reseller_stock',
+        destination_mode: 'direct_google',
+        date: card.date
+      };
+    }
+  }
+  
+  // Fallback
+  if (!card) {
+    card = {
+      id: cardId,
+      serial: serial,
+      status: 'active',
+      lifecycle_state: 'claimed',
+      destination_mode: 'direct_google'
+    };
+  }
+  
+  cardDetailModal(card);
+}
+
 // Handle save business profile
 async function handleSaveBusinessProfile() {
   const p = state.businessProfile;

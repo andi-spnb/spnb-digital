@@ -202,7 +202,20 @@ root.addEventListener("click", (event) => {
 
   const unsell = event.target.closest("[data-unsell-card]");
   if (unsell) {
+    // Close modal if exists
+    if (unsell.dataset.modalClose !== undefined || event.target.closest(".modal")) {
+      closeModal();
+    }
     handleUnsellCard(unsell.dataset.unsellCard, unsell.dataset.serial);
+    return;
+  }
+
+  // View card detail (reseller)
+  const viewCard = event.target.closest("[data-view-card]");
+  if (viewCard) {
+    const cardId = viewCard.dataset.viewCard;
+    const serial = viewCard.dataset.serial || cardId;
+    handleViewCardDetail(cardId, serial);
     return;
   }
 
