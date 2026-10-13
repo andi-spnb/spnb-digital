@@ -122,3 +122,58 @@ async function loadAdminDashboardData() {
     return null;
   }
 }
+
+// Generate pagination buttons
+function generatePaginationButtons(currentPage, totalPages, pageType) {
+  let buttons = [];
+  const maxVisible = 5;
+  
+  let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  let end = Math.min(totalPages, start + maxVisible - 1);
+  
+  if (end - start + 1 < maxVisible) {
+    start = Math.max(1, end - maxVisible + 1);
+  }
+  
+  for (let i = start; i <= end; i++) {
+    const isActive = i === currentPage;
+    buttons.push(`<button class="btn ${isActive ? 'btn-primary' : 'btn-ghost'} btn-sm" data-page="${i}" data-page-type="${pageType}">${i}</button>`);
+  }
+  
+  return buttons.join('');
+}
+
+// Filter data helper
+function filterData(data, filters, searchFields) {
+  if (!data) return [];
+  
+  let filtered = [...data];
+  
+  // Apply search
+  if (filters.search) {
+    const searchLower = filters.search.toLowerCase();
+    filtered = filtered.filter(item => 
+      searchFields.some(field => {
+        const value = item[field];
+        return value && String(value).toLowerCase().includes(searchLower);
+      })
+    );
+  }
+  
+  // Apply status filter
+  if (filters.status) {
+    filtered = filtered.filter(item => item.status === filters.status);
+  }
+  
+  return filtered;
+}
+
+// Paginate data helper
+function paginateData(data, pagination) {
+  const total = data.length;
+  const totalPages = Math.ceil(total / pagination.perPage);
+  const startIdx = (pagination.page - 1) * pagination.perPage;
+  const paginated = data.slice(startIdx, startIdx + pagination.perPage);
+  
+  return { paginated, total, totalPages };
+}

@@ -431,6 +431,18 @@ root.addEventListener("click", (event) => {
     return;
   }
 
+  // Pagination handlers
+  const paginationBtn = event.target.closest("[data-page]");
+  if (paginationBtn) {
+    const pageType = paginationBtn.dataset.pageType;
+    const page = parseInt(paginationBtn.dataset.page);
+    if (pageType && page && state.pagination[pageType]) {
+      state.pagination[pageType].page = page;
+      render();
+    }
+    return;
+  }
+
   // Export CSV handlers
   if (event.target.closest("[data-export-cards]")) {
     exportCardsCSV();
@@ -508,10 +520,33 @@ root.addEventListener("input", (event) => {
       }
     }
   }
+  
+  // Handle search inputs with debounce
+  const searchInput = event.target.closest("[data-search]");
+  if (searchInput) {
+    const filterType = searchInput.dataset.search;
+    clearTimeout(window._searchDebounce);
+    window._searchDebounce = setTimeout(() => {
+      state.filters[filterType].search = searchInput.value.trim().toLowerCase();
+      state.pagination[filterType].page = 1; // Reset to page 1
+      render();
+    }, 300);
+    return;
+  }
 });
 
 // File upload handler
 root.addEventListener("change", (event) => {
+  // Filter dropdowns
+  const filterSelect = event.target.closest("[data-filter]");
+  if (filterSelect) {
+    const [filterType, filterField] = filterSelect.dataset.filter.split('.');
+    state.filters[filterType][filterField] = filterSelect.value;
+    state.pagination[filterType].page = 1; // Reset to page 1
+    render();
+    return;
+  }
+  
   // Logo upload
   if (event.target.closest("[data-upload-logo]")) {
     const file = event.target.files?.[0];

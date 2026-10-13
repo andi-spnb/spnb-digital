@@ -23,6 +23,20 @@ const state = {
   notificationsLoading: false,
   unreadCount: 0,
   showNotificationPanel: false,
+  // Filter & Search state
+  filters: {
+    cards: { search: '', status: '', reseller: '' },
+    resellers: { search: '', status: '' },
+    owners: { search: '', status: '' },
+    logs: { search: '', user: '', date: '' }
+  },
+  // Pagination state
+  pagination: {
+    cards: { page: 1, perPage: 20, total: 0 },
+    resellers: { page: 1, perPage: 20, total: 0 },
+    owners: { page: 1, perPage: 20, total: 0 },
+    logs: { page: 1, perPage: 20, total: 0 }
+  },
   // Activation flow state
   activation: {
     step: 1,

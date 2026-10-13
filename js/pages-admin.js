@@ -156,23 +156,73 @@ function adminTable(limit) {
 }
 
 function adminCardsPage() {
+  const filters = state.filters.cards;
+  const pagination = state.pagination.cards;
+  const resellers = state.adminData?.resellers || [];
+  
+  // Get and filter cards
+  let cards = [];
+  if (state.adminData?.cards) {
+    cards = state.adminData.cards.map(c => ({
+      id: c.id,
+      serial: c.serial,
+      status: mapCardStatus(c.lifecycle_state),
+      lifecycle_state: c.lifecycle_state,
+      reseller: c.resellers?.name || '—',
+      resellerId: c.assigned_reseller_id,
+      owner: c.accounts?.display_name ? maskPhone(c.accounts.phone_e164) : '—',
+      activated: formatDate(c.claimed_at),
+      interactions: '0'
+    }));
+  } else {
+    cards = adminCards.map(c => ({
+      serial: c[0],
+      status: c[1],
+      reseller: c[2],
+      owner: c[3],
+      activated: c[4],
+      interactions: c[5]
+    }));
+  }
+  
+  // Apply filters
+  if (filters.search) {
+    cards = cards.filter(c => 
+      c.serial?.toLowerCase().includes(filters.search) ||
+      c.reseller?.toLowerCase().includes(filters.search) ||
+      c.owner?.toLowerCase().includes(filters.search)
+    );
+  }
+  if (filters.status) {
+    cards = cards.filter(c => c.status === filters.status || c.lifecycle_state === filters.status);
+  }
+  if (filters.reseller) {
+    cards = cards.filter(c => c.resellerId === filters.reseller);
+  }
+  
+  // Pagination
+  const totalCards = cards.length;
+  const totalPages = Math.ceil(totalCards / pagination.perPage);
+  const startIdx = (pagination.page - 1) * pagination.perPage;
+  const paginatedCards = cards.slice(startIdx, startIdx + pagination.perPage);
+  
   const content = `
     <div class="toolbar">
       <div class="filters">
-        <div class="search-box"><input placeholder="Cari serial, owner, atau reseller..." /></div>
-        <select class="select">
-          <option>Semua Status</option>
-          <option>Aktif</option>
-          <option>Terjual</option>
-          <option>Stok Admin</option>
-          <option>Stok Reseller</option>
-          <option>Diblokir</option>
+        <div class="search-box">
+          <input placeholder="Cari serial, owner, atau reseller..." data-search="cards" value="${filters.search}" />
+        </div>
+        <select class="select" data-filter="cards.status">
+          <option value="">Semua Status</option>
+          <option value="active" ${filters.status === 'active' ? 'selected' : ''}>Aktif</option>
+          <option value="sold" ${filters.status === 'sold' ? 'selected' : ''}>Terjual</option>
+          <option value="admin" ${filters.status === 'admin' ? 'selected' : ''}>Stok Admin</option>
+          <option value="stock" ${filters.status === 'stock' ? 'selected' : ''}>Stok Reseller</option>
+          <option value="blocked" ${filters.status === 'blocked' ? 'selected' : ''}>Diblokir</option>
         </select>
-        <select class="select">
-          <option>Semua Reseller</option>
-          <option>Reseller Bandung</option>
-          <option>Reseller Jakarta</option>
-          <option>Reseller Surabaya</option>
+        <select class="select" data-filter="cards.reseller">
+          <option value="">Semua Reseller</option>
+          ${resellers.map(r => `<option value="${r.id}" ${filters.reseller === r.id ? 'selected' : ''}>${r.name}</option>`).join('')}
         </select>
       </div>
       <div class="toolbar-actions">
@@ -182,17 +232,47 @@ function adminCardsPage() {
       </div>
     </div>
     
-    ${adminTable()}
+    <div class="table-wrap table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Serial</th>
+            <th>Status</th>
+            <th>Reseller</th>
+            <th>Owner</th>
+            <th>Aktivasi</th>
+            <th>Interaksi</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${paginatedCards.length === 0 ? `
+            <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">
+              ${filters.search || filters.status || filters.reseller ? 'Tidak ada kartu yang cocok dengan filter.' : 'Belum ada kartu.'}
+            </td></tr>
+          ` : paginatedCards.map(c => `
+            <tr>
+              <td data-label="Serial"><strong>${c.serial}</strong></td>
+              <td data-label="Status">${statusBadge(c.status)}</td>
+              <td data-label="Reseller">${c.reseller}</td>
+              <td data-label="Owner">${c.owner}</td>
+              <td data-label="Aktivasi">${c.activated}</td>
+              <td data-label="Interaksi">${c.interactions}</td>
+              <td data-label=""><button class="action-menu" data-card-menu="${c.id || c.serial}">⋯</button></td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>
     
     <div class="table-footer">
-      <span class="muted">Menampilkan 6 dari 648 kartu</span>
-      <div class="pagination">
-        <button class="btn btn-ghost btn-sm">←</button>
-        <button class="btn btn-primary btn-sm">1</button>
-        <button class="btn btn-ghost btn-sm">2</button>
-        <button class="btn btn-ghost btn-sm">3</button>
-        <button class="btn btn-ghost btn-sm">→</button>
-      </div>
+      <span class="muted">Menampilkan ${paginatedCards.length} dari ${totalCards} kartu</span>
+      ${totalPages > 1 ? `
+        <div class="pagination">
+          <button class="btn btn-ghost btn-sm" data-page="${Math.max(1, pagination.page - 1)}" data-page-type="cards" ${pagination.page <= 1 ? 'disabled' : ''}>←</button>
+          ${generatePaginationButtons(pagination.page, totalPages, 'cards')}
+          <button class="btn btn-ghost btn-sm" data-page="${Math.min(totalPages, pagination.page + 1)}" data-page-type="cards" ${pagination.page >= totalPages ? 'disabled' : ''}>→</button>
+        </div>
+      ` : ''}
     </div>`;
   
   return appShell("admin", "Semua Kartu", "Kelola seluruh kartu QR dan NFC.", content);
@@ -296,17 +376,34 @@ function adminStockPage() {
 }
 
 function adminResellerPage() {
-  const resellers = state.adminData?.resellers || [];
+  const filters = state.filters.resellers;
   const cards = state.adminData?.cards || [];
+  
+  // Get and filter resellers
+  let resellers = state.adminData?.resellers || [];
+  
+  // Apply filters
+  if (filters.search) {
+    resellers = resellers.filter(r => 
+      r.name?.toLowerCase().includes(filters.search) ||
+      r.city?.toLowerCase().includes(filters.search) ||
+      r.phone_e164?.includes(filters.search)
+    );
+  }
+  if (filters.status) {
+    resellers = resellers.filter(r => r.status === filters.status);
+  }
   
   const content = `
     <div class="toolbar">
       <div class="filters">
-        <div class="search-box"><input placeholder="Cari reseller..." id="reseller-search" /></div>
-        <select class="select" id="reseller-status-filter">
+        <div class="search-box">
+          <input placeholder="Cari reseller..." data-search="resellers" value="${filters.search}" />
+        </div>
+        <select class="select" data-filter="resellers.status">
           <option value="">Semua Status</option>
-          <option value="active">Aktif</option>
-          <option value="inactive">Nonaktif</option>
+          <option value="active" ${filters.status === 'active' ? 'selected' : ''}>Aktif</option>
+          <option value="inactive" ${filters.status === 'inactive' ? 'selected' : ''}>Nonaktif</option>
         </select>
       </div>
       <div class="toolbar-actions">
@@ -318,8 +415,8 @@ function adminResellerPage() {
     <div class="reseller-grid">
       ${resellers.length === 0 ? `
         <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">
-          <p>Belum ada reseller.</p>
-          <button class="btn btn-primary" style="margin-top:16px" data-reseller-modal>${icons.plus} Tambah Reseller Pertama</button>
+          <p>${filters.search || filters.status ? 'Tidak ada reseller yang cocok dengan filter.' : 'Belum ada reseller.'}</p>
+          ${!filters.search && !filters.status ? `<button class="btn btn-primary" style="margin-top:16px" data-reseller-modal>${icons.plus} Tambah Reseller Pertama</button>` : ''}
         </div>
       ` : resellers.map(r => {
         const stockCount = cards.filter(c => c.assigned_reseller_id === r.id && c.lifecycle_state === 'reseller_stock').length;
@@ -361,6 +458,9 @@ function resellerCard(initial, name, city, stock, sold, resellerId) {
 }
 
 function adminOwnerPage() {
+  const filters = state.filters.owners;
+  const pagination = state.pagination.owners;
+  
   // Get owners from real data or use mock
   let owners = [];
   
@@ -368,21 +468,40 @@ function adminOwnerPage() {
     owners = state.adminData.owners;
   } else {
     owners = [
-      { user_id: "1", display_name: "Budi Santoso", phone_e164: "0812••••7890", businessCount: 2, cardCount: 3, created_at: "2026-10-12", status: "active" },
-      { user_id: "2", display_name: "Siti Rahma", phone_e164: "0857••••2210", businessCount: 1, cardCount: 2, created_at: "2026-10-11", status: "active" },
-      { user_id: "3", display_name: "Deni Kurnia", phone_e164: "0813••••3021", businessCount: 1, cardCount: 1, created_at: "2026-10-08", status: "active" },
-      { user_id: "4", display_name: "Maya Putri", phone_e164: "0821••••7742", businessCount: 3, cardCount: 5, created_at: "2026-10-04", status: "active" },
+      { user_id: "1", display_name: "Budi Santoso", phone_e164: "+6281234567890", businessCount: 2, cardCount: 3, created_at: "2026-10-12", status: "active" },
+      { user_id: "2", display_name: "Siti Rahma", phone_e164: "+6285712342210", businessCount: 1, cardCount: 2, created_at: "2026-10-11", status: "active" },
+      { user_id: "3", display_name: "Deni Kurnia", phone_e164: "+6281312343021", businessCount: 1, cardCount: 1, created_at: "2026-10-08", status: "active" },
+      { user_id: "4", display_name: "Maya Putri", phone_e164: "+6282112347742", businessCount: 3, cardCount: 5, created_at: "2026-10-04", status: "active" },
     ];
   }
+  
+  // Apply filters
+  if (filters.search) {
+    owners = owners.filter(o => 
+      o.display_name?.toLowerCase().includes(filters.search) ||
+      o.phone_e164?.includes(filters.search)
+    );
+  }
+  if (filters.status) {
+    owners = owners.filter(o => o.status === filters.status);
+  }
+  
+  // Pagination
+  const totalOwners = owners.length;
+  const totalPages = Math.ceil(totalOwners / pagination.perPage);
+  const startIdx = (pagination.page - 1) * pagination.perPage;
+  const paginatedOwners = owners.slice(startIdx, startIdx + pagination.perPage);
   
   const content = `
     <div class="toolbar">
       <div class="filters">
-        <div class="search-box"><input placeholder="Cari nama atau nomor HP..." id="owner-search" /></div>
-        <select class="select" id="owner-status-filter">
+        <div class="search-box">
+          <input placeholder="Cari nama atau nomor HP..." data-search="owners" value="${filters.search}" />
+        </div>
+        <select class="select" data-filter="owners.status">
           <option value="">Semua Status</option>
-          <option value="active">Aktif</option>
-          <option value="blocked">Diblokir</option>
+          <option value="active" ${filters.status === 'active' ? 'selected' : ''}>Aktif</option>
+          <option value="blocked" ${filters.status === 'blocked' ? 'selected' : ''}>Diblokir</option>
         </select>
       </div>
     </div>
@@ -400,9 +519,11 @@ function adminOwnerPage() {
           </tr>
         </thead>
         <tbody>
-          ${owners.length === 0 ? `
-            <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Belum ada owner.</td></tr>
-          ` : owners.map(o => `
+          ${paginatedOwners.length === 0 ? `
+            <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">
+              ${filters.search || filters.status ? 'Tidak ada owner yang cocok dengan filter.' : 'Belum ada owner.'}
+            </td></tr>
+          ` : paginatedOwners.map(o => `
             <tr>
               <td data-label="Owner"><strong>${o.display_name || '-'}</strong></td>
               <td data-label="Nomor HP">${o.phone_e164 ? maskPhone(o.phone_e164) : '-'}</td>
@@ -418,6 +539,17 @@ function adminOwnerPage() {
             </tr>`).join("")}
         </tbody>
       </table>
+    </div>
+    
+    <div class="table-footer">
+      <span class="muted">Menampilkan ${paginatedOwners.length} dari ${totalOwners} owner</span>
+      ${totalPages > 1 ? `
+        <div class="pagination">
+          <button class="btn btn-ghost btn-sm" data-page="${Math.max(1, pagination.page - 1)}" data-page-type="owners" ${pagination.page <= 1 ? 'disabled' : ''}>←</button>
+          ${generatePaginationButtons(pagination.page, totalPages, 'owners')}
+          <button class="btn btn-ghost btn-sm" data-page="${Math.min(totalPages, pagination.page + 1)}" data-page-type="owners" ${pagination.page >= totalPages ? 'disabled' : ''}>→</button>
+        </div>
+      ` : ''}
     </div>`;
   
   return appShell("admin", "Owner", "Kelola akun owner dan pemulihan akses.", content);
@@ -741,18 +873,51 @@ async function loadAdminStats(days = 30) {
 }
 
 function adminLogsPage() {
-  const logs = [["Admin SPNB","Membuat batch BTH-0018","100 kartu","12 Okt · 10:32"],["Reseller Bandung","Menandai KRT-000126 terjual","Stok reseller","12 Okt · 09:48"],["Budi Santoso","Mengubah tujuan KRT-000125","Google Rating","12 Okt · 09:14"],["Admin SPNB","Membuat tautan reset akun","Owner: Siti Rahma","11 Okt · 16:20"],["Reseller Jakarta","Menandai KRT-000127 terjual","Stok reseller","11 Okt · 14:08"]];
+  const filters = state.filters.logs;
+  const pagination = state.pagination.logs;
+  
+  // Mock logs data (will be replaced with real data later)
+  let logs = [
+    { user: "Admin SPNB", userType: "admin", action: "Membuat batch BTH-0018", detail: "100 kartu", time: "12 Okt · 10:32", timestamp: "2026-10-12T10:32:00" },
+    { user: "Reseller Bandung", userType: "reseller", action: "Menandai KRT-000126 terjual", detail: "Stok reseller", time: "12 Okt · 09:48", timestamp: "2026-10-12T09:48:00" },
+    { user: "Budi Santoso", userType: "owner", action: "Mengubah tujuan KRT-000125", detail: "Google Rating", time: "12 Okt · 09:14", timestamp: "2026-10-12T09:14:00" },
+    { user: "Admin SPNB", userType: "admin", action: "Membuat tautan reset akun", detail: "Owner: Siti Rahma", time: "11 Okt · 16:20", timestamp: "2026-10-11T16:20:00" },
+    { user: "Reseller Jakarta", userType: "reseller", action: "Menandai KRT-000127 terjual", detail: "Stok reseller", time: "11 Okt · 14:08", timestamp: "2026-10-11T14:08:00" },
+    { user: "Maya Putri", userType: "owner", action: "Mengaktifkan KRT-000130", detail: "Owner baru", time: "10 Okt · 11:22", timestamp: "2026-10-10T11:22:00" },
+    { user: "Admin SPNB", userType: "admin", action: "Distribusi 20 kartu", detail: "Ke Reseller Surabaya", time: "10 Okt · 09:00", timestamp: "2026-10-10T09:00:00" },
+    { user: "Deni Kurnia", userType: "owner", action: "Mengubah profil usaha", detail: "Bakso Rasa", time: "9 Okt · 15:45", timestamp: "2026-10-09T15:45:00" },
+  ];
+  
+  // Apply filters
+  if (filters.search) {
+    logs = logs.filter(l => 
+      l.user?.toLowerCase().includes(filters.search) ||
+      l.action?.toLowerCase().includes(filters.search) ||
+      l.detail?.toLowerCase().includes(filters.search)
+    );
+  }
+  if (filters.user) {
+    logs = logs.filter(l => l.userType === filters.user);
+  }
+  
+  // Pagination
+  const totalLogs = logs.length;
+  const totalPages = Math.ceil(totalLogs / pagination.perPage);
+  const startIdx = (pagination.page - 1) * pagination.perPage;
+  const paginatedLogs = logs.slice(startIdx, startIdx + pagination.perPage);
+  
   const content = `
     <div class="toolbar">
       <div class="filters">
-        <div class="search-box"><input placeholder="Cari aktivitas..." /></div>
-        <select class="select">
-          <option>Semua pengguna</option>
-          <option>Admin</option>
-          <option>Reseller</option>
-          <option>Owner</option>
+        <div class="search-box">
+          <input placeholder="Cari aktivitas..." data-search="logs" value="${filters.search}" />
+        </div>
+        <select class="select" data-filter="logs.user">
+          <option value="">Semua Pengguna</option>
+          <option value="admin" ${filters.user === 'admin' ? 'selected' : ''}>Admin</option>
+          <option value="reseller" ${filters.user === 'reseller' ? 'selected' : ''}>Reseller</option>
+          <option value="owner" ${filters.user === 'owner' ? 'selected' : ''}>Owner</option>
         </select>
-        <input class="input" type="date" style="width:auto" />
       </div>
       <button class="btn btn-secondary" data-export-audit-log>${icons.chart} Ekspor CSV</button>
     </div>
@@ -762,9 +927,24 @@ function adminLogsPage() {
           <tr><th>Pengguna</th><th>Aktivitas</th><th>Detail</th><th>Waktu</th></tr>
         </thead>
         <tbody>
-          ${logs.map(l => `<tr><td><strong>${l[0]}</strong></td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td></tr>`).join("")}
+          ${paginatedLogs.length === 0 ? `
+            <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted)">
+              ${filters.search || filters.user ? 'Tidak ada log yang cocok dengan filter.' : 'Belum ada aktivitas.'}
+            </td></tr>
+          ` : paginatedLogs.map(l => `<tr><td data-label="Pengguna"><strong>${l.user}</strong></td><td data-label="Aktivitas">${l.action}</td><td data-label="Detail">${l.detail}</td><td data-label="Waktu">${l.time}</td></tr>`).join("")}
         </tbody>
       </table>
+    </div>
+    
+    <div class="table-footer">
+      <span class="muted">Menampilkan ${paginatedLogs.length} dari ${totalLogs} log</span>
+      ${totalPages > 1 ? `
+        <div class="pagination">
+          <button class="btn btn-ghost btn-sm" data-page="${Math.max(1, pagination.page - 1)}" data-page-type="logs" ${pagination.page <= 1 ? 'disabled' : ''}>←</button>
+          ${generatePaginationButtons(pagination.page, totalPages, 'logs')}
+          <button class="btn btn-ghost btn-sm" data-page="${Math.min(totalPages, pagination.page + 1)}" data-page-type="logs" ${pagination.page >= totalPages ? 'disabled' : ''}>→</button>
+        </div>
+      ` : ''}
     </div>`;
   return appShell("admin", "Riwayat Aktivitas", "Audit perubahan penting yang dilakukan setiap pengguna.", content);
 }
