@@ -83,46 +83,27 @@ async function reverseSale(cardId, reason) {
 }
 
 async function claimCard(claimToken, businessId, destinationMode) {
-  // Try RPC first
+  // Use RPC function to claim card (bypasses RLS)
   try {
-    const { data, error } = await supabaseClient.rpc('claim_sold_card', {
-      p_claim_token: claimToken,
+    const { data, error } = await supabaseClient.rpc('claim_card_for_owner', {
+      p_card_id: claimToken,
+      p_owner_id: currentUser.id,
       p_business_id: businessId,
-      p_destination_mode: destinationMode
+      p_destination_mode: destinationMode || 'direct_google'
     });
     
-    if (!error) {
-      return { data, error: null };
+    if (error) {
+      console.error('claim_card_for_owner RPC error:', error);
+      return { data: null, error };
     }
     
-    console.log('RPC claim_sold_card failed, using direct update:', error.message);
-  } catch (e) {
-    console.log('RPC claim_sold_card exception, using direct update:', e.message);
-  }
-  
-  // Fallback: Direct database update
-  try {
-    // Update card to claimed status
-    const { data: card, error: updateError } = await supabaseClient
-      .from('cards')
-      .update({
-        lifecycle_state: 'claimed',
-        owner_id: currentUser.id,
-        business_id: businessId,
-        destination_mode: destinationMode,
-        claimed_at: new Date().toISOString()
-      })
-      .eq('id', claimToken)
-      .select()
-      .single();
-    
-    if (updateError) {
-      return { data: null, error: updateError };
+    if (data?.error) {
+      return { data: null, error: { message: data.message } };
     }
     
-    return { data: card, error: null };
+    return { data, error: null };
   } catch (e) {
-    console.error('Direct claim failed:', e);
+    console.error('claimCard exception:', e);
     return { data: null, error: { message: e.message } };
   }
 }

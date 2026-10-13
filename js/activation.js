@@ -417,40 +417,48 @@ async function handleCreateActivationBusiness() {
   render();
   
   try {
-    // Ensure account exists first (for foreign key constraint)
+    // Ensure account exists first (using RPC to bypass RLS)
     await ensureAccountExists();
     
-    // Create business
-    const { data: business, error: bizError } = await createBusiness({
-      name: a.businessName.trim(),
-      google_review_url: a.googleReviewUrl.trim(),
-      theme_color: '#1769c2'
+    // Create business using RPC
+    const { data: bizResult, error: bizError } = await supabaseClient.rpc('create_business_for_owner', {
+      p_owner_id: currentUser.id,
+      p_name: a.businessName.trim(),
+      p_google_review_url: a.googleReviewUrl.trim(),
+      p_theme_color: '#1769c2'
     });
     
     if (bizError) {
-      console.error('Create business error:', bizError);
+      console.error('Create business RPC error:', bizError);
       a.isSubmitting = false;
       toast('Gagal membuat profil usaha: ' + (bizError.message || 'Terjadi kesalahan'));
       render();
       return false;
     }
     
-    // Create slug
+    if (bizResult?.error) {
+      console.error('Create business error:', bizResult);
+      a.isSubmitting = false;
+      toast('Gagal membuat profil usaha: ' + bizResult.message);
+      render();
+      return false;
+    }
+    
+    const businessId = bizResult.business_id;
+    
+    // Create slug using RPC
     const slug = a.businessSlug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const { error: slugError } = await supabaseClient
-      .from('business_slugs')
-      .insert({
-        slug: slug,
-        business_id: business.id,
-        is_current: true
-      });
+    const { error: slugError } = await supabaseClient.rpc('create_business_slug', {
+      p_business_id: businessId,
+      p_slug: slug
+    });
     
     if (slugError) {
       console.error('Create slug error:', slugError);
       // Continue anyway, slug is optional
     }
     
-    a.selectedBusinessId = business.id;
+    a.selectedBusinessId = businessId;
     a.isSubmitting = false;
     render();
     return true;
@@ -463,63 +471,24 @@ async function handleCreateActivationBusiness() {
   }
 }
 
-// Ensure account record exists for current user
+// Ensure account record exists for current user (using RPC)
 async function ensureAccountExists() {
   if (!currentUser) return;
   
   try {
-    // Check if account exists
-    const { data: existing, error: checkError } = await supabaseClient
-      .from('accounts')
-      .select('user_id')
-      .eq('user_id', currentUser.id)
-      .maybeSingle();
-    
-    if (checkError) {
-      console.log('Check account error:', checkError.message);
-    }
-    
-    if (existing) {
-      console.log('Account already exists');
-      return;
-    }
-    
-    // Create account record
     const displayName = currentAccount?.display_name || currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0] || 'User';
     const phoneE164 = currentAccount?.phone_e164 || currentUser.user_metadata?.phone_e164 || null;
     
-    const { error: insertError } = await supabaseClient
-      .from('accounts')
-      .insert({
-        user_id: currentUser.id,
-        display_name: displayName,
-        phone_e164: phoneE164
-      });
+    const { data, error } = await supabaseClient.rpc('ensure_account_exists', {
+      p_user_id: currentUser.id,
+      p_display_name: displayName,
+      p_phone_e164: phoneE164
+    });
     
-    if (insertError) {
-      console.error('Create account error:', insertError);
-      // Try upsert if insert fails (might be race condition)
-      const { error: upsertError } = await supabaseClient
-        .from('accounts')
-        .upsert({
-          user_id: currentUser.id,
-          display_name: displayName,
-          phone_e164: phoneE164
-        }, { onConflict: 'user_id' });
-      
-      if (upsertError) {
-        console.error('Upsert account error:', upsertError);
-      }
+    if (error) {
+      console.error('ensure_account_exists RPC error:', error);
     } else {
-      console.log('Account created successfully');
-      
-      // Also create owner role
-      await supabaseClient
-        .from('account_roles')
-        .insert({
-          user_id: currentUser.id,
-          role: 'owner'
-        });
+      console.log('ensure_account_exists result:', data);
     }
   } catch (e) {
     console.error('ensureAccountExists exception:', e);
