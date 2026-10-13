@@ -73,6 +73,8 @@ function redirectToDashboard() {
 
 async function signUp(email, password, displayName, phone) {
   const phoneE164 = phone ? normalizePhone(phone) : null;
+  const siteUrl = window.location.origin + window.location.pathname;
+  
   const { data, error } = await supabaseClient.auth.signUp({
     email,
     password,
@@ -80,7 +82,8 @@ async function signUp(email, password, displayName, phone) {
       data: { 
         phone_e164: phoneE164, 
         display_name: displayName 
-      }
+      },
+      emailRedirectTo: `${siteUrl}#/login`
     }
   });
   return { data, error };
