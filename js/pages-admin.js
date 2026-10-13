@@ -302,16 +302,21 @@ function adminCardsPage() {
       resellerId: c.assigned_reseller_id,
       owner: c.accounts?.display_name ? maskPhone(c.accounts.phone_e164) : '—',
       activated: formatDate(c.claimed_at),
-      interactions: '0'
+      interactions: '0',
+      qr_token: c.qr_token || c.id,
+      nfc_token: c.nfc_token || c.id
     }));
   } else {
-    cards = adminCards.map(c => ({
+    cards = adminCards.map((c, i) => ({
+      id: `card-${i}`,
       serial: c[0],
       status: c[1],
       reseller: c[2],
       owner: c[3],
       activated: c[4],
-      interactions: c[5]
+      interactions: c[5],
+      qr_token: `qr-${c[0].toLowerCase()}`,
+      nfc_token: `nfc-${c[0].toLowerCase()}`
     }));
   }
   
@@ -383,10 +388,10 @@ function adminCardsPage() {
             <th style="width:40px"><input type="checkbox" data-select-all-cards ${allVisibleSelected ? 'checked' : ''} /></th>
             <th>Serial</th>
             <th>Status</th>
+            <th>QR / NFC</th>
             <th>Reseller</th>
             <th>Owner</th>
             <th>Aktivasi</th>
-            <th>Interaksi</th>
             <th></th>
           </tr>
         </thead>
@@ -402,10 +407,14 @@ function adminCardsPage() {
               <td data-label=""><input type="checkbox" data-select-card="${c.id || c.serial}" ${isSelected ? 'checked' : ''} /></td>
               <td data-label="Serial"><strong>${c.serial}</strong></td>
               <td data-label="Status">${statusBadge(c.status)}</td>
+              <td data-label="QR / NFC">
+                <button class="btn btn-ghost btn-sm" data-show-card-qr="${c.id || c.serial}" data-serial="${c.serial}" data-qr-token="${c.qr_token}" data-nfc-token="${c.nfc_token}" title="Lihat QR & NFC">
+                  ${icons.qr}
+                </button>
+              </td>
               <td data-label="Reseller">${c.reseller}</td>
               <td data-label="Owner">${c.owner}</td>
               <td data-label="Aktivasi">${c.activated}</td>
-              <td data-label="Interaksi">${c.interactions}</td>
               <td data-label=""><button class="action-menu" data-card-menu="${c.id || c.serial}">⋯</button></td>
             </tr>`;
           }).join("")}

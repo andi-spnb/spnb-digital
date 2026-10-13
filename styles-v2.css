@@ -1527,3 +1527,178 @@ td { font-weight: 500; }
     white-space: nowrap;
   }
 }
+
+/* ============ QR CODE & NFC MODAL ============ */
+.qr-nfc-content {
+  padding: 20px 0;
+}
+
+.qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  margin-bottom: 20px;
+  background: var(--soft);
+  border-radius: 12px;
+}
+
+.qr-code-container {
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.qr-code-container img,
+.qr-code-container canvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.qr-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.qr-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.qr-error .svg-icon {
+  width: 48px;
+  height: 48px;
+  opacity: 0.5;
+}
+
+.qr-serial {
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.5px;
+}
+
+.link-section {
+  margin-bottom: 20px;
+}
+
+.link-section .form-group {
+  margin-bottom: 16px;
+}
+
+.link-section label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.link-section label .svg-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--blue-700);
+}
+
+.input-with-copy {
+  display: flex;
+  gap: 8px;
+}
+
+.input-with-copy .input {
+  flex: 1;
+  font-size: 12px;
+  font-family: monospace;
+  background: var(--soft);
+}
+
+.input-with-copy .btn {
+  flex-shrink: 0;
+}
+
+.nfc-info-section {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+
+.nfc-specs {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--soft);
+  border-radius: 10px;
+}
+
+.nfc-specs h4 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.spec-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spec-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.spec-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  word-break: break-all;
+}
+
+@media (max-width: 600px) {
+  .spec-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .qr-code-container {
+    width: 180px;
+    height: 180px;
+  }
+  
+  .input-with-copy {
+    flex-direction: column;
+  }
+  
+  .input-with-copy .btn {
+    width: 100%;
+  }
+}

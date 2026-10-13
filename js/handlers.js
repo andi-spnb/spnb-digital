@@ -787,3 +787,45 @@ async function handleBulkBlock() {
     toast('Terjadi kesalahan.');
   }
 }
+
+// Download QR Code as image
+function downloadQrCode(serial) {
+  const container = document.getElementById('qr-code-display');
+  if (!container) {
+    toast('QR code tidak ditemukan.');
+    return;
+  }
+  
+  // Try to find canvas or img element
+  const canvas = container.querySelector('canvas');
+  const img = container.querySelector('img');
+  
+  if (canvas) {
+    // Download from canvas
+    const link = document.createElement('a');
+    link.download = `qr-${serial}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    toast('QR code berhasil didownload.');
+  } else if (img && img.src) {
+    // Download from img (fetch and convert to blob)
+    fetch(img.src)
+      .then(res => res.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `qr-${serial}.png`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+        toast('QR code berhasil didownload.');
+      })
+      .catch(() => {
+        // Fallback: open in new tab
+        window.open(img.src, '_blank');
+        toast('QR code dibuka di tab baru.');
+      });
+  } else {
+    toast('Tidak dapat mendownload QR code.');
+  }
+}

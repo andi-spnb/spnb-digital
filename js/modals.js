@@ -311,3 +311,123 @@ function cardDetailModal(card) {
     </div>
   `);
 }
+
+// Modal QR Code dan NFC untuk kartu (admin view)
+function cardQrNfcModal(cardId, serial, qrToken, nfcToken) {
+  // Generate activation URL
+  const baseUrl = window.location.origin + window.location.pathname;
+  const activationUrl = `${baseUrl}#/aktivasi?token=${qrToken || cardId}`;
+  const nfcUrl = `${baseUrl}#/c/${nfcToken || cardId}`;
+  
+  openModal(`
+    <div class="row-between">
+      <div><h2>QR Code & NFC</h2><p>${serial}</p></div>
+      <button class="icon-btn" data-modal-close>${icons.close}</button>
+    </div>
+    <div class="qr-nfc-content">
+      <div class="qr-section">
+        <div class="qr-code-container" id="qr-code-display">
+          <div class="qr-loading">
+            <div class="loading-spinner"></div>
+            <span>Generating QR...</span>
+          </div>
+        </div>
+        <p class="qr-serial">${serial}</p>
+      </div>
+      
+      <div class="link-section">
+        <div class="form-group">
+          <label>${icons.qr} Link Aktivasi (QR Code)</label>
+          <div class="input-with-copy">
+            <input class="input" id="activation-link" value="${activationUrl}" readonly />
+            <button class="btn btn-ghost btn-sm" data-copy-link="activation-link" title="Salin link">
+              ${icons.link}
+            </button>
+          </div>
+          <span class="input-hint">Link ini digunakan untuk QR code pada kartu fisik</span>
+        </div>
+        
+        <div class="form-group">
+          <label>${icons.nfc} Link NFC Tag</label>
+          <div class="input-with-copy">
+            <input class="input" id="nfc-link" value="${nfcUrl}" readonly />
+            <button class="btn btn-ghost btn-sm" data-copy-link="nfc-link" title="Salin link">
+              ${icons.link}
+            </button>
+          </div>
+          <span class="input-hint">Link ini ditulis ke NFC tag pada kartu fisik</span>
+        </div>
+      </div>
+      
+      <div class="nfc-info-section">
+        <div class="info-box">
+          ${icons.nfc}
+          <div>
+            <strong>Informasi NFC Tag</strong>
+            <p>Gunakan aplikasi NFC Writer untuk menulis link NFC ke tag. Pastikan tag mendukung NDEF format.</p>
+          </div>
+        </div>
+        
+        <div class="nfc-specs">
+          <h4>Spesifikasi Tag NFC</h4>
+          <div class="spec-grid">
+            <div class="spec-item">
+              <span class="spec-label">Tipe Tag</span>
+              <span class="spec-value">NTAG213 / NTAG215</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Format</span>
+              <span class="spec-value">NDEF URI Record</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Token</span>
+              <span class="spec-value">${nfcToken || cardId}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close>Tutup</button>
+      <button class="btn btn-secondary" data-download-qr="${serial}">
+        ${icons.chart} Download QR
+      </button>
+      <button class="btn btn-primary" data-copy-link="activation-link">
+        ${icons.link} Salin Link
+      </button>
+    </div>
+  `);
+  
+  // Generate QR code after modal is rendered
+  setTimeout(() => generateQrCode(activationUrl, serial), 100);
+}
+
+// Generate QR Code menggunakan library atau canvas
+function generateQrCode(url, serial) {
+  const container = document.getElementById('qr-code-display');
+  if (!container) return;
+  
+  // Check if qrcode library is available
+  if (typeof QRCode !== 'undefined') {
+    container.innerHTML = '';
+    new QRCode(container, {
+      text: url,
+      width: 200,
+      height: 200,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } else {
+    // Fallback: Generate QR using canvas with simple pattern (or use API)
+    container.innerHTML = `
+      <div class="qr-fallback">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}" 
+             alt="QR Code ${serial}" 
+             width="200" 
+             height="200"
+             onerror="this.parentElement.innerHTML='<div class=\\'qr-error\\'>${icons.qr}<p>Gagal memuat QR</p></div>'" />
+      </div>
+    `;
+  }
+}

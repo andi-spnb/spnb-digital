@@ -315,6 +315,43 @@ root.addEventListener("click", (event) => {
     return;
   }
 
+  // Show card QR & NFC modal
+  const showCardQr = event.target.closest("[data-show-card-qr]");
+  if (showCardQr) {
+    const cardId = showCardQr.dataset.showCardQr;
+    const serial = showCardQr.dataset.serial;
+    const qrToken = showCardQr.dataset.qrToken;
+    const nfcToken = showCardQr.dataset.nfcToken;
+    cardQrNfcModal(cardId, serial, qrToken, nfcToken);
+    return;
+  }
+
+  // Copy link to clipboard
+  const copyLink = event.target.closest("[data-copy-link]");
+  if (copyLink) {
+    const inputId = copyLink.dataset.copyLink;
+    const input = document.getElementById(inputId);
+    if (input) {
+      navigator.clipboard.writeText(input.value).then(() => {
+        toast('Link berhasil disalin!');
+      }).catch(() => {
+        // Fallback for older browsers
+        input.select();
+        document.execCommand('copy');
+        toast('Link berhasil disalin!');
+      });
+    }
+    return;
+  }
+
+  // Download QR code
+  const downloadQr = event.target.closest("[data-download-qr]");
+  if (downloadQr) {
+    const serial = downloadQr.dataset.downloadQr;
+    downloadQrCode(serial);
+    return;
+  }
+
   // Block card
   const blockCard = event.target.closest("[data-block-card]");
   if (blockCard) {
