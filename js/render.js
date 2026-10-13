@@ -75,3 +75,5 @@ async function initApp() {
 }
 
 initApp();
+
+window.addEventListener("hashchange", render);

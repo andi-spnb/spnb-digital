@@ -579,4 +579,4 @@ async function handleLogout() {
   }
 }
 
-window.addEventListener("hashchange", render);
+// hashchange listener moved to render.js
