@@ -417,6 +417,9 @@ async function handleCreateActivationBusiness() {
   render();
   
   try {
+    // Ensure account exists first (for foreign key constraint)
+    await ensureAccountExists();
+    
     // Create business
     const { data: business, error: bizError } = await createBusiness({
       name: a.businessName.trim(),
@@ -427,7 +430,7 @@ async function handleCreateActivationBusiness() {
     if (bizError) {
       console.error('Create business error:', bizError);
       a.isSubmitting = false;
-      toast('Gagal membuat profil usaha: ' + bizError.message);
+      toast('Gagal membuat profil usaha: ' + (bizError.message || 'Terjadi kesalahan'));
       render();
       return false;
     }
@@ -457,6 +460,69 @@ async function handleCreateActivationBusiness() {
     toast('Terjadi kesalahan. Silakan coba lagi.');
     render();
     return false;
+  }
+}
+
+// Ensure account record exists for current user
+async function ensureAccountExists() {
+  if (!currentUser) return;
+  
+  try {
+    // Check if account exists
+    const { data: existing, error: checkError } = await supabaseClient
+      .from('accounts')
+      .select('user_id')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.log('Check account error:', checkError.message);
+    }
+    
+    if (existing) {
+      console.log('Account already exists');
+      return;
+    }
+    
+    // Create account record
+    const displayName = currentAccount?.display_name || currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0] || 'User';
+    const phoneE164 = currentAccount?.phone_e164 || currentUser.user_metadata?.phone_e164 || null;
+    
+    const { error: insertError } = await supabaseClient
+      .from('accounts')
+      .insert({
+        user_id: currentUser.id,
+        display_name: displayName,
+        phone_e164: phoneE164
+      });
+    
+    if (insertError) {
+      console.error('Create account error:', insertError);
+      // Try upsert if insert fails (might be race condition)
+      const { error: upsertError } = await supabaseClient
+        .from('accounts')
+        .upsert({
+          user_id: currentUser.id,
+          display_name: displayName,
+          phone_e164: phoneE164
+        }, { onConflict: 'user_id' });
+      
+      if (upsertError) {
+        console.error('Upsert account error:', upsertError);
+      }
+    } else {
+      console.log('Account created successfully');
+      
+      // Also create owner role
+      await supabaseClient
+        .from('account_roles')
+        .insert({
+          user_id: currentUser.id,
+          role: 'owner'
+        });
+    }
+  } catch (e) {
+    console.error('ensureAccountExists exception:', e);
   }
 }
 
