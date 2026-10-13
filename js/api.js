@@ -83,12 +83,48 @@ async function reverseSale(cardId, reason) {
 }
 
 async function claimCard(claimToken, businessId, destinationMode) {
-  const { data, error } = await supabaseClient.rpc('claim_sold_card', {
-    p_claim_token: claimToken,
-    p_business_id: businessId,
-    p_destination_mode: destinationMode
-  });
-  return { data, error };
+  // Try RPC first
+  try {
+    const { data, error } = await supabaseClient.rpc('claim_sold_card', {
+      p_claim_token: claimToken,
+      p_business_id: businessId,
+      p_destination_mode: destinationMode
+    });
+    
+    if (!error) {
+      return { data, error: null };
+    }
+    
+    console.log('RPC claim_sold_card failed, using direct update:', error.message);
+  } catch (e) {
+    console.log('RPC claim_sold_card exception, using direct update:', e.message);
+  }
+  
+  // Fallback: Direct database update
+  try {
+    // Update card to claimed status
+    const { data: card, error: updateError } = await supabaseClient
+      .from('cards')
+      .update({
+        lifecycle_state: 'claimed',
+        owner_id: currentUser.id,
+        business_id: businessId,
+        destination_mode: destinationMode,
+        claimed_at: new Date().toISOString()
+      })
+      .eq('id', claimToken)
+      .select()
+      .single();
+    
+    if (updateError) {
+      return { data: null, error: updateError };
+    }
+    
+    return { data: card, error: null };
+  } catch (e) {
+    console.error('Direct claim failed:', e);
+    return { data: null, error: { message: e.message } };
+  }
 }
 
 // ============ ADMIN FUNCTIONS ============

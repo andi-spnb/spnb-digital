@@ -42,30 +42,55 @@ function mapCardStatus(lifecycleState) {
 
 // Load data untuk dashboard owner
 async function loadOwnerDashboardData() {
-  if (!USE_REAL_DATA || !currentUser) return null;
+  if (!USE_REAL_DATA || !currentUser) {
+    console.log('loadOwnerDashboardData: skipped (USE_REAL_DATA:', USE_REAL_DATA, ', currentUser:', !!currentUser, ')');
+    return null;
+  }
   
   try {
+    console.log('Loading owner data for user:', currentUser.id);
+    
     // Load businesses
-    const { data: businesses } = await supabaseClient
+    const { data: businesses, error: bizError } = await supabaseClient
       .from('businesses')
       .select('*, business_slugs(slug, is_current)')
       .eq('owner_id', currentUser.id);
     
+    if (bizError) {
+      console.error('Error loading businesses:', bizError);
+    }
+    console.log('Loaded businesses:', businesses?.length || 0);
+    
     // Load cards
-    const { data: cards } = await supabaseClient
+    const { data: cards, error: cardsError } = await supabaseClient
       .from('cards')
       .select('*, businesses(name)')
       .eq('owner_id', currentUser.id);
     
-    // Load recent interactions
-    const { data: events } = await supabaseClient
-      .from('interaction_events')
-      .select('*')
-      .in('business_id', (businesses || []).map(b => b.id))
-      .order('occurred_at', { ascending: false })
-      .limit(10);
+    if (cardsError) {
+      console.error('Error loading cards:', cardsError);
+    }
+    console.log('Loaded cards:', cards?.length || 0);
     
-    return { businesses, cards, events };
+    // Load recent interactions (only if we have businesses)
+    let events = [];
+    if (businesses && businesses.length > 0) {
+      const businessIds = businesses.map(b => b.id);
+      const { data: eventsData, error: eventsError } = await supabaseClient
+        .from('interaction_events')
+        .select('*, cards(serial)')
+        .in('business_id', businessIds)
+        .order('occurred_at', { ascending: false })
+        .limit(10);
+      
+      if (eventsError) {
+        console.error('Error loading events:', eventsError);
+      }
+      events = eventsData || [];
+    }
+    console.log('Loaded events:', events.length);
+    
+    return { businesses: businesses || [], cards: cards || [], events };
   } catch (e) {
     console.error('Error loading owner data:', e);
     return null;
