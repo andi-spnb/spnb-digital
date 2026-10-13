@@ -12,20 +12,26 @@ function ownerPage(route) {
     loadOwnerStats(30);
   }
   
-  // Use real data if available
-  const dbBusiness = state.ownerData?.businesses?.[0];
-  const dbCards = state.ownerData?.cards || [];
-  const p = dbBusiness ? {
-    name: dbBusiness.name || 'Bisnis Anda',
-    themeColor: dbBusiness.theme_color || '#1769c2'
-  } : state.businessProfile;
-  
   const userName = currentAccount?.display_name || 'Pengguna';
   const firstName = userName.split(' ')[0];
   
+  // Use real data from database
+  const dbBusiness = state.ownerData?.businesses?.[0];
+  const dbCards = state.ownerData?.cards || [];
+  
+  // Jika belum ada data bisnis atau kartu, tampilkan welcome screen
+  if (!dbBusiness && dbCards.length === 0) {
+    return ownerEmptyState(firstName);
+  }
+  
+  const p = dbBusiness ? {
+    name: dbBusiness.name || 'Bisnis Anda',
+    themeColor: dbBusiness.theme_color || '#1769c2'
+  } : { name: 'Bisnis Anda', themeColor: '#1769c2' };
+  
   // Get primary card info
   const primaryCard = dbCards[0];
-  const primaryCardSerial = primaryCard?.serial || 'KRT-XXXXXX';
+  const primaryCardSerial = primaryCard?.serial || 'Belum ada kartu';
   const primaryCardMode = primaryCard?.destination_mode === 'direct_google' ? 'Langsung ke Google Rating' : 'Halaman Profil';
   const primaryCardStatus = primaryCard ? mapCardStatus(primaryCard.lifecycle_state) : 'stock';
   
@@ -38,7 +44,7 @@ function ownerPage(route) {
   const totalScans = nfcTaps + qrScans;
   const nfcPercent = totalScans > 0 ? Math.round(nfcTaps / totalScans * 100) : 0;
   
-  // Build activity list from real events or demo
+  // Build activity list from real events
   const recentEvents = state.ownerData?.events || [];
   const activityHtml = recentEvents.length > 0 
     ? recentEvents.slice(0, 4).map(e => {
@@ -51,14 +57,9 @@ function ownerPage(route) {
           formatRelativeTime(e.occurred_at)
         );
       }).join('')
-    : `
-        ${activity("nfc", "NFC disentuh", "Kartu " + primaryCardSerial, "2 menit")}
-        ${activity("star", "Google Rating diklik", p.name, "12 menit")}
-        ${activity("qr", "QR dipindai", "Kartu " + primaryCardSerial, "28 menit")}
-        ${activity("phone", "WhatsApp diklik", "Profil bisnis", "1 jam")}
-      `;
+    : `<div class="empty-activity"><p class="muted">Belum ada aktivitas. Interaksi akan muncul setelah kartu digunakan.</p></div>`;
   
-  // Build card list from real data or demo
+  // Build card list from real data
   const cardListHtml = dbCards.length > 0
     ? dbCards.slice(0, 3).map(card => {
         const bizName = card.businesses?.name || p.name;
@@ -66,16 +67,17 @@ function ownerPage(route) {
         const mode = card.destination_mode === 'direct_google' ? 'Langsung ke Google' : 'Halaman Profil';
         return businessCardReal(initials, bizName, `${card.serial} · ${mode}`, card.id, card.lifecycle_state, p.themeColor);
       }).join('')
-    : `
-        ${businessCard("KN", p.name, primaryCardSerial + " · " + primaryCardMode, "0", "0")}
-      `;
+    : `<div class="empty-state" style="text-align:center;padding:30px;color:var(--muted)">
+        <p>Belum ada kartu yang terhubung.</p>
+        <button class="btn btn-primary btn-sm" data-route="/aktivasi" style="margin-top:12px">${icons.scan} Aktivasi Kartu</button>
+      </div>`;
   
   const content = `
     <section class="workbench owner-workbench">
       <div>
         <span class="workbench-label">Kartu utama</span>
-        <div class="row wrap"><h2>${p.name} · ${primaryCardSerial}</h2>${statusBadge(primaryCardStatus)}</div>
-        <p>Tujuan saat ini: <strong>${primaryCardMode}</strong>.</p>
+        <div class="row wrap"><h2>${p.name} · ${primaryCardSerial}</h2>${primaryCard ? statusBadge(primaryCardStatus) : ''}</div>
+        <p>Tujuan saat ini: <strong>${primaryCard ? primaryCardMode : 'Belum diatur'}</strong>.</p>
       </div>
       <div class="workbench-actions">
         <button class="btn btn-primary" data-route="/owner/kartu">Ubah tujuan</button>
@@ -106,6 +108,25 @@ function ownerPage(route) {
       </div>
     </section>`;
   return appShell("owner", `Selamat datang, ${firstName}!`, "Pantau perkembangan interaksi bisnis Anda.", content);
+}
+
+// Empty state untuk owner baru yang belum punya bisnis/kartu
+function ownerEmptyState(firstName) {
+  const content = `
+    <section class="welcome-empty-state">
+      <div class="welcome-icon">${icons.card}</div>
+      <h1>Selamat datang, ${firstName}!</h1>
+      <p>Anda belum memiliki kartu atau profil bisnis yang terhubung.</p>
+      <p class="muted">Aktivasi kartu pertama Anda untuk mulai menerima ulasan dari pelanggan.</p>
+      <div class="welcome-actions">
+        <button class="btn btn-primary btn-lg" data-route="/aktivasi">${icons.scan} Aktivasi Kartu Baru</button>
+        <button class="btn btn-secondary" data-route="/owner/profil">${icons.business} Buat Profil Bisnis</button>
+      </div>
+      <div class="welcome-help">
+        <p>Butuh bantuan? <a href="${whatsappUrl}" target="_blank">Hubungi tim SPNB DIGITAL</a></p>
+      </div>
+    </section>`;
+  return appShell("owner", `Selamat datang, ${firstName}!`, "Mulai dengan mengaktivasi kartu pertama Anda.", content);
 }
 
 function activity(icon, title, sub, time) {

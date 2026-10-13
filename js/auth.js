@@ -100,6 +100,12 @@ function clearUserData() {
   state.notifications = [];
   state.unreadCount = 0;
   state.showNotificationPanel = false;
+  // Clear user-specific data
+  state.ownerData = null;
+  state.resellerData = null;
+  state.adminData = null;
+  state.ownerStats = null;
+  state.adminStats = null;
 }
 
 function redirectToDashboard() {

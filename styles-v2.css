@@ -1869,3 +1869,110 @@ td { font-weight: 500; }
     padding: 5px 12px;
   }
 }
+
+/* ============ OWNER EMPTY STATE ============ */
+.welcome-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 24px;
+  min-height: 60vh;
+}
+
+.welcome-icon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--blue-100);
+  color: var(--blue-700);
+  border-radius: 20px;
+  margin-bottom: 24px;
+}
+
+.welcome-icon .svg-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.welcome-empty-state h1 {
+  margin-bottom: 12px;
+  font-size: 28px;
+}
+
+.welcome-empty-state > p {
+  margin-bottom: 8px;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.welcome-empty-state > p.muted {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 32px;
+}
+
+.welcome-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.welcome-actions .btn-lg {
+  min-height: 52px;
+  padding: 0 28px;
+  font-size: 15px;
+}
+
+.welcome-help {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.welcome-help p {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.welcome-help a {
+  color: var(--blue-700);
+  text-decoration: none;
+}
+
+.welcome-help a:hover {
+  text-decoration: underline;
+}
+
+.empty-activity {
+  padding: 24px;
+  text-align: center;
+}
+
+.empty-activity p {
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .welcome-empty-state {
+    padding: 40px 20px;
+    min-height: 50vh;
+  }
+  
+  .welcome-empty-state h1 {
+    font-size: 24px;
+  }
+  
+  .welcome-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .welcome-actions .btn {
+    width: 100%;
+  }
+}
