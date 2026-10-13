@@ -3135,15 +3135,76 @@ function ownerPage(route) {
   if (route === "/owner/statistik") return ownerStatsPage();
   if (route === "/owner/akun") return accountPage("owner");
   if (route === "/owner/bantuan") return helpPage("owner");
-  const p = state.businessProfile;
-  const userName = currentAccount?.display_name || 'Budi';
+  
+  // Auto-load stats if not loaded yet (for dashboard metrics)
+  if (!state.ownerStats && !state.statsLoading && state.ownerData?.businesses?.length > 0) {
+    loadOwnerStats(30);
+  }
+  
+  // Use real data if available
+  const dbBusiness = state.ownerData?.businesses?.[0];
+  const dbCards = state.ownerData?.cards || [];
+  const p = dbBusiness ? {
+    name: dbBusiness.name || 'Bisnis Anda',
+    themeColor: dbBusiness.theme_color || '#1769c2'
+  } : state.businessProfile;
+  
+  const userName = currentAccount?.display_name || 'Pengguna';
   const firstName = userName.split(' ')[0];
+  
+  // Get primary card info
+  const primaryCard = dbCards[0];
+  const primaryCardSerial = primaryCard?.serial || 'KRT-XXXXXX';
+  const primaryCardMode = primaryCard?.destination_mode === 'direct_google' ? 'Langsung ke Google Rating' : 'Halaman Profil';
+  const primaryCardStatus = primaryCard ? mapCardStatus(primaryCard.lifecycle_state) : 'stock';
+  
+  // Get stats from ownerStats or use defaults
+  const stats = state.ownerStats?.current || {};
+  const totalInteractions = stats.totalInteractions || 0;
+  const googleClicks = stats.googleClicks || 0;
+  const nfcTaps = stats.nfcTaps || 0;
+  const qrScans = stats.qrScans || 0;
+  const totalScans = nfcTaps + qrScans;
+  const nfcPercent = totalScans > 0 ? Math.round(nfcTaps / totalScans * 100) : 0;
+  
+  // Build activity list from real events or demo
+  const recentEvents = state.ownerData?.events || [];
+  const activityHtml = recentEvents.length > 0 
+    ? recentEvents.slice(0, 4).map(e => {
+        const eventIcons = { 'qr_scan': 'qr', 'nfc_tap': 'nfc', 'profile_view': 'eye', 'profile_link_click': 'star' };
+        const eventTitles = { 'qr_scan': 'QR dipindai', 'nfc_tap': 'NFC disentuh', 'profile_view': 'Profil dilihat', 'profile_link_click': 'Tombol diklik' };
+        return activity(
+          eventIcons[e.event_type] || 'chart',
+          eventTitles[e.event_type] || e.event_type,
+          e.cards?.serial || p.name,
+          formatRelativeTime(e.occurred_at)
+        );
+      }).join('')
+    : `
+        ${activity("nfc", "NFC disentuh", "Kartu " + primaryCardSerial, "2 menit")}
+        ${activity("star", "Google Rating diklik", p.name, "12 menit")}
+        ${activity("qr", "QR dipindai", "Kartu " + primaryCardSerial, "28 menit")}
+        ${activity("phone", "WhatsApp diklik", "Profil bisnis", "1 jam")}
+      `;
+  
+  // Build card list from real data or demo
+  const cardListHtml = dbCards.length > 0
+    ? dbCards.slice(0, 3).map(card => {
+        const bizName = card.businesses?.name || p.name;
+        const initials = bizName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+        const mode = card.destination_mode === 'direct_google' ? 'Langsung ke Google' : 'Halaman Profil';
+        return businessCardReal(initials, bizName, `${card.serial} · ${mode}`, card.id, card.lifecycle_state, p.themeColor);
+      }).join('')
+    : `
+        ${businessCard("KN", p.name, primaryCardSerial + " · " + primaryCardMode, "0", "0")}
+      `;
+  
   const content = `
     <section class="workbench owner-workbench">
       <div>
         <span class="workbench-label">Kartu utama</span>
-        <div class="row wrap"><h2>${p.name} · KRT-000125</h2>${statusBadge("active")}</div>
-        <p>Tujuan saat ini: <strong>Langsung ke Google Rating</strong>. Terakhir digunakan 2 menit lalu.</p>
+        <div class="row wrap"><h2>${p.name} · ${primaryCardSerial}</h2>${statusBadge(primaryCardStatus)}</div>
+        <p>Tujuan saat ini: <strong>${primaryCardMode}</strong>.</p>
       </div>
       <div class="workbench-actions">
         <button class="btn btn-primary" data-route="/owner/kartu">Ubah tujuan</button>
@@ -3151,19 +3212,16 @@ function ownerPage(route) {
       </div>
     </section>
     ${metrics([
-      { label: "Pembukaan tautan", value: "1.284", trend: "QR dan NFC · 30 hari", icon: "scan" },
-      { label: "Klik tombol Google", value: "426", trend: "Bukan jumlah ulasan", icon: "star" },
-      { label: "Tap NFC", value: "518", trend: "40% dari seluruh interaksi", icon: "nfc" },
+      { label: "Total interaksi", value: formatNumber(totalInteractions), trend: "QR dan NFC · 30 hari", icon: "scan" },
+      { label: "Klik Google Rating", value: formatNumber(googleClicks), trend: "Bukan jumlah ulasan", icon: "star" },
+      { label: "Tap NFC", value: formatNumber(nfcTaps), trend: nfcPercent + "% dari seluruh interaksi", icon: "nfc" },
     ])}
     <div class="dashboard-grid">
       ${chartPanel()}
       <section class="panel">
         <div class="panel-title"><div><h2>Aktivitas terbaru</h2><p>Interaksi profil hari ini</p></div></div>
         <div class="activity-list">
-          ${activity("nfc", "NFC disentuh", "Kartu KRT-000125", "2 menit")}
-          ${activity("star", "Google Rating diklik", p.name, "12 menit")}
-          ${activity("qr", "QR dipindai", "Kartu KRT-000127", "28 menit")}
-          ${activity("phone", "WhatsApp diklik", "Profil bisnis", "1 jam")}
+          ${activityHtml}
         </div>
       </section>
     </div>
@@ -3173,8 +3231,7 @@ function ownerPage(route) {
         <button class="btn btn-secondary btn-sm" data-route="/owner/kartu">Lihat Semua</button>
       </div>
       <div class="card-list">
-        ${businessCard("KN", p.name, "KRT-000125 · Langsung ke Google", "124", "86")}
-        ${businessCard("KC", p.name + " Cabang 2", "KRT-000127 · Halaman Profil", "98", "54")}
+        ${cardListHtml}
       </div>
     </section>`;
   return appShell("owner", `Selamat datang, ${firstName}!`, "Pantau perkembangan interaksi bisnis Anda.", content);
@@ -3182,6 +3239,23 @@ function ownerPage(route) {
 
 function activity(icon, title, sub, time) {
   return `<div class="activity-item"><span class="activity-icon">${icons[icon]}</span><div><b>${title}</b><small>${sub}</small></div><small>${time}</small></div>`;
+}
+
+function businessCardReal(initial, name, desc, cardId, lifecycleState, themeColor) {
+  const bgColor = themeColor || 'var(--blue-800)';
+  const status = mapCardStatus(lifecycleState);
+  return `<div class="business-card" data-card-id="${cardId}">
+    <div class="business-logo" style="background:${bgColor}">${initial}</div>
+    <div>
+      <h3>${name} ${statusBadge(status)}</h3>
+      <p>${desc}</p>
+    </div>
+    <div class="business-metrics">
+      <div><b>—</b><span>SCAN QR</span></div>
+      <div><b>—</b><span>TAP NFC</span></div>
+    </div>
+    <button class="btn btn-secondary btn-sm" data-manage-card="${cardId}">Kelola</button>
+  </div>`;
 }
 
 function businessCard(initial, name, desc, scan, tap) {
@@ -3201,46 +3275,123 @@ function businessCard(initial, name, desc, scan, tap) {
   </div>`;
 }
 
+// Update card destination mode
+async function updateCardDestination(cardId, destinationMode, businessId) {
+  if (!USE_REAL_DATA || !currentUser) {
+    toast('Pengaturan kartu disimpan (demo).');
+    return { error: null };
+  }
+  
+  try {
+    const updateData = { destination_mode: destinationMode };
+    if (businessId) {
+      updateData.business_id = businessId;
+    }
+    
+    const { error } = await supabaseClient
+      .from('cards')
+      .update(updateData)
+      .eq('id', cardId)
+      .eq('owner_id', currentUser.id);
+    
+    if (error) {
+      console.error('Update card error:', error);
+      toast('Gagal menyimpan: ' + (error.message || 'Terjadi kesalahan'));
+      return { error };
+    }
+    
+    // Reload owner data
+    state.ownerData = await loadOwnerDashboardData();
+    render();
+    toast('Pengaturan kartu berhasil disimpan.');
+    return { error: null };
+  } catch (e) {
+    console.error('Update card exception:', e);
+    toast('Terjadi kesalahan. Silakan coba lagi.');
+    return { error: e };
+  }
+}
+
 function ownerCardsPage() {
-  const p = state.businessProfile;
+  // Use real data if available
+  const dbCards = state.ownerData?.cards || [];
+  const dbBusinesses = state.ownerData?.businesses || [];
+  const p = dbBusinesses[0] ? {
+    name: dbBusinesses[0].name,
+    themeColor: dbBusinesses[0].theme_color || '#1769c2'
+  } : state.businessProfile;
+  
+  // Build card list
+  const cardListHtml = dbCards.length > 0
+    ? dbCards.map(card => {
+        const bizName = card.businesses?.name || p.name;
+        const initials = bizName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+        const mode = card.destination_mode === 'direct_google' ? 'Langsung ke Google' : 'Halaman Profil';
+        return businessCardReal(initials, bizName, `${card.serial} · ${mode}`, card.id, card.lifecycle_state, p.themeColor);
+      }).join('')
+    : `<div class="empty-state" style="text-align:center;padding:40px;color:var(--muted)">
+        <p>Belum ada kartu yang terhubung.</p>
+        <button class="btn btn-primary btn-sm" data-open-scanner style="margin-top:12px">${icons.scan} Aktivasi Kartu Baru</button>
+      </div>`;
+  
+  // Build card options for select
+  const cardOptions = dbCards.length > 0 
+    ? dbCards.map(c => `<option value="${c.id}" data-mode="${c.destination_mode}">${c.serial}</option>`).join('')
+    : '<option value="">Tidak ada kartu</option>';
+  
+  // Build business options for select  
+  const businessOptions = dbBusinesses.length > 0
+    ? dbBusinesses.map(b => `<option value="${b.id}">${b.name}</option>`).join('')
+    : `<option value="">${p.name}</option>`;
+  
+  // Get first card's current mode for default selection
+  const firstCard = dbCards[0];
+  const currentMode = firstCard?.destination_mode || 'direct_google';
+  
   const content = `
     <div class="toolbar">
       <div class="filters">
-        <div class="search-box"><input placeholder="Cari kartu atau usaha..." /></div>
-        <select class="select"><option>Semua status</option><option>Aktif</option><option>Diblokir</option></select>
+        <div class="search-box"><input placeholder="Cari kartu atau usaha..." id="card-search" /></div>
+        <select class="select" id="card-status-filter"><option value="">Semua status</option><option value="claimed">Aktif</option><option value="sold_unclaimed">Menunggu Aktivasi</option></select>
       </div>
-      <button class="btn btn-primary" data-demo-toast="Untuk menambah kartu, pindai QR kartu baru yang sudah ditandai terjual.">${icons.plus} Tambah Kartu</button>
+      <button class="btn btn-primary" data-open-scanner>${icons.scan} Aktivasi Kartu Baru</button>
     </div>
-    <div class="card-list">
-      ${businessCard("KN", p.name, "KRT-000125 · Langsung ke Google", "124", "86")}
-      ${businessCard("KN", p.name, "KRT-000126 · Halaman Profil", "83", "102")}
-      ${businessCard("KC", p.name + " Cabang 2", "KRT-000127 · Halaman Profil", "98", "54")}
+    <div class="card-list" id="owner-card-list">
+      ${cardListHtml}
     </div>
+    ${dbCards.length > 0 ? `
     <div class="panel" style="margin-top:18px">
       <div class="panel-title">
-        <div><h2>Pengaturan cepat kartu</h2><p>Contoh perubahan tujuan tanpa mencetak ulang QR atau NFC.</p></div>
+        <div><h2>Pengaturan Kartu</h2><p>Ubah tujuan kartu tanpa mencetak ulang QR atau NFC.</p></div>
       </div>
       <div class="form-grid">
         <div class="form-group">
           <label>Pilih kartu</label>
-          <select class="input"><option>KRT-000125</option><option>KRT-000126</option></select>
+          <select class="input" id="card-select">${cardOptions}</select>
         </div>
         <div class="form-group">
           <label>Profil usaha</label>
-          <select class="input"><option>${p.name}</option><option>${p.name} Cabang 2</option></select>
+          <select class="input" id="business-select">${businessOptions}</select>
         </div>
         <div class="form-group full">
           <label>Tujuan kartu</label>
-          <div class="choice-grid">
-            <div class="choice-card selected"><h3>${icons.star} Langsung ke Google</h3><p>Pengunjung langsung menuju link rating.</p></div>
-            <div class="choice-card"><h3>${icons.business} Halaman Profil</h3><p>Pengunjung melihat halaman profil bisnis.</p></div>
+          <div class="choice-grid" id="destination-choice">
+            <div class="choice-card ${currentMode === 'direct_google' ? 'selected' : ''}" data-mode="direct_google">
+              <h3>${icons.star} Langsung ke Google</h3>
+              <p>Pengunjung langsung menuju link rating.</p>
+            </div>
+            <div class="choice-card ${currentMode === 'profile_page' ? 'selected' : ''}" data-mode="profile_page">
+              <h3>${icons.business} Halaman Profil</h3>
+              <p>Pengunjung melihat halaman profil bisnis.</p>
+            </div>
           </div>
         </div>
       </div>
       <div class="row" style="justify-content:flex-end;margin-top:18px">
-        <button class="btn btn-primary" data-demo-toast="Pengaturan kartu berhasil disimpan.">Simpan Perubahan</button>
+        <button class="btn btn-primary" data-save-card-settings>${icons.check} Simpan Perubahan</button>
       </div>
-    </div>`;
+    </div>
+    ` : ''}`;
   return appShell("owner", "Kartu Saya", "Kelola tujuan dan profil untuk setiap kartu.", content);
 }
 
@@ -4140,7 +4291,7 @@ function adminTable(limit) {
   if (limit) cards = cards.slice(0, limit);
   
   return `
-    <div class="table-wrap">
+    <div class="table-wrap table-responsive">
       <table>
         <thead>
           <tr>
@@ -4158,13 +4309,13 @@ function adminTable(limit) {
             <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Belum ada kartu.</td></tr>
           ` : cards.map(c => `
             <tr>
-              <td><strong>${c.serial}</strong></td>
-              <td>${statusBadge(c.status)}</td>
-              <td>${c.reseller}</td>
-              <td>${c.owner}</td>
-              <td>${c.activated}</td>
-              <td>${c.interactions}</td>
-              <td><button class="action-menu" data-card-menu="${c.id || c.serial}">⋯</button></td>
+              <td data-label="Serial"><strong>${c.serial}</strong></td>
+              <td data-label="Status">${statusBadge(c.status)}</td>
+              <td data-label="Reseller">${c.reseller}</td>
+              <td data-label="Owner">${c.owner}</td>
+              <td data-label="Aktivasi">${c.activated}</td>
+              <td data-label="Interaksi">${c.interactions}</td>
+              <td data-label=""><button class="action-menu" data-card-menu="${c.id || c.serial}">⋯</button></td>
             </tr>`).join("")}
         </tbody>
       </table>
@@ -5365,6 +5516,291 @@ function sellModal(cardId, serial) {
   openModal(`<div class="row-between"><div><h2>Tandai Sebagai Terjual?</h2><p>Kartu ${serial} akan dibuka untuk proses aktivasi.</p></div><button class="icon-btn" data-modal-close>${icons.close}</button></div><div style="padding:16px;border:1px solid var(--blue-200);border-radius:13px;background:var(--blue-50);font-size:12px;color:var(--blue-800)"><b>Penting:</b> Setelah dikonfirmasi, kartu dapat diklaim oleh orang pertama yang memindai QR. Tidak ada data pembeli yang perlu diisi.</div><div class="modal-actions"><button class="btn btn-ghost" data-modal-close>Batal</button><button class="btn btn-primary" data-confirm-sell="${cardId}" data-serial="${serial}">Ya, Tandai Terjual</button></div>`);
 }
 
+// ============ QR SCANNER FOR CARD ACTIVATION ============
+let qrScanner = null;
+
+function openScannerModal() {
+  closeModal();
+  document.body.classList.add("no-scroll");
+  
+  root.insertAdjacentHTML("beforeend", `
+    <div class="modal-backdrop" id="modal">
+      <div class="modal scanner-modal">
+        <div class="row-between">
+          <div>
+            <h2>${icons.scan} Scan Kartu</h2>
+            <p>Arahkan kamera ke QR code pada kartu untuk aktivasi.</p>
+          </div>
+          <button class="icon-btn" data-scanner-close>${icons.close}</button>
+        </div>
+        <div class="scanner-container">
+          <div id="qr-reader"></div>
+          <div class="scanner-overlay">
+            <div class="scanner-frame"></div>
+          </div>
+        </div>
+        <div class="scanner-status" id="scanner-status">
+          <div class="loading-spinner" style="width:20px;height:20px"></div>
+          <span>Memulai kamera...</span>
+        </div>
+        <div class="scanner-hint">
+          <p>${icons.help} Pastikan QR code terlihat jelas dalam bingkai</p>
+        </div>
+        <div class="scanner-actions">
+          <button class="btn btn-ghost" data-scanner-close>Batal</button>
+          <button class="btn btn-secondary" id="switch-camera-btn" style="display:none">
+            ${icons.scan} Ganti Kamera
+          </button>
+        </div>
+      </div>
+    </div>
+  `);
+  
+  initQrScanner();
+}
+
+async function initQrScanner() {
+  const statusEl = document.getElementById('scanner-status');
+  const switchBtn = document.getElementById('switch-camera-btn');
+  
+  try {
+    // Check if Html5Qrcode is available
+    if (typeof Html5Qrcode === 'undefined') {
+      updateScannerStatus('error', 'Library scanner tidak tersedia. Silakan refresh halaman.');
+      return;
+    }
+    
+    qrScanner = new Html5Qrcode("qr-reader");
+    
+    // Get available cameras
+    const cameras = await Html5Qrcode.getCameras();
+    
+    if (!cameras || cameras.length === 0) {
+      updateScannerStatus('error', 'Tidak ada kamera yang ditemukan.');
+      return;
+    }
+    
+    // Show switch camera button if multiple cameras
+    if (cameras.length > 1 && switchBtn) {
+      switchBtn.style.display = 'inline-flex';
+      switchBtn.dataset.cameraIndex = '0';
+      switchBtn.dataset.cameras = JSON.stringify(cameras.map(c => c.id));
+    }
+    
+    // Prefer back camera
+    let cameraId = cameras[0].id;
+    const backCamera = cameras.find(c => 
+      c.label.toLowerCase().includes('back') || 
+      c.label.toLowerCase().includes('belakang') ||
+      c.label.toLowerCase().includes('rear') ||
+      c.label.toLowerCase().includes('environment')
+    );
+    if (backCamera) cameraId = backCamera.id;
+    
+    await startScanner(cameraId);
+    
+  } catch (err) {
+    console.error('QR Scanner init error:', err);
+    if (err.name === 'NotAllowedError') {
+      updateScannerStatus('error', 'Akses kamera ditolak. Izinkan akses kamera di pengaturan browser.');
+    } else if (err.name === 'NotFoundError') {
+      updateScannerStatus('error', 'Kamera tidak ditemukan pada perangkat ini.');
+    } else {
+      updateScannerStatus('error', 'Gagal memulai scanner: ' + (err.message || 'Unknown error'));
+    }
+  }
+}
+
+async function startScanner(cameraId) {
+  if (!qrScanner) return;
+  
+  updateScannerStatus('loading', 'Memulai kamera...');
+  
+  try {
+    await qrScanner.start(
+      cameraId,
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+      },
+      onQrCodeScanned,
+      (errorMessage) => {
+        // Ignore scan errors (no QR found in frame)
+      }
+    );
+    
+    updateScannerStatus('ready', 'Kamera aktif. Arahkan ke QR code kartu.');
+    
+  } catch (err) {
+    console.error('Start scanner error:', err);
+    updateScannerStatus('error', 'Gagal memulai kamera: ' + (err.message || 'Unknown error'));
+  }
+}
+
+async function switchCamera() {
+  const switchBtn = document.getElementById('switch-camera-btn');
+  if (!switchBtn || !qrScanner) return;
+  
+  try {
+    const cameras = JSON.parse(switchBtn.dataset.cameras || '[]');
+    let currentIndex = parseInt(switchBtn.dataset.cameraIndex || '0');
+    
+    // Stop current scanner
+    await qrScanner.stop();
+    
+    // Switch to next camera
+    currentIndex = (currentIndex + 1) % cameras.length;
+    switchBtn.dataset.cameraIndex = currentIndex.toString();
+    
+    // Start with new camera
+    await startScanner(cameras[currentIndex]);
+    
+  } catch (err) {
+    console.error('Switch camera error:', err);
+    toast('Gagal mengganti kamera.');
+  }
+}
+
+function onQrCodeScanned(decodedText, decodedResult) {
+  console.log('QR Scanned:', decodedText);
+  
+  // Stop scanner immediately to prevent multiple scans
+  if (qrScanner) {
+    qrScanner.stop().catch(console.error);
+  }
+  
+  updateScannerStatus('success', 'QR code terdeteksi! Memproses...');
+  
+  // Parse the QR code URL to extract activation token
+  const activationUrl = parseActivationUrl(decodedText);
+  
+  if (activationUrl) {
+    // Close scanner modal
+    closeScannerModal();
+    
+    // Navigate to activation page with token
+    toast('Kartu terdeteksi! Memulai aktivasi...');
+    
+    setTimeout(() => {
+      // Reset activation state for new card
+      state.activation = {
+        step: 1,
+        token: null,
+        claimSessionToken: null,
+        cardId: null,
+        cardSerial: null,
+        cardStatus: null,
+        errorMessage: null,
+        authMode: 'register',
+        email: currentUser?.email || "",
+        phone: "",
+        password: "",
+        confirm: "",
+        displayName: currentAccount?.display_name || "",
+        selectedBusinessId: null,
+        existingBusinesses: [],
+        createNewBusiness: false,
+        businessName: "",
+        businessSlug: "",
+        googleReviewUrl: "",
+        destinationMode: "direct_google",
+        isLoading: false,
+        isSubmitting: false,
+      };
+      
+      // Navigate to activation with the token
+      window.location.hash = activationUrl;
+    }, 500);
+    
+  } else {
+    // Invalid QR code
+    updateScannerStatus('error', 'QR code tidak valid. Pastikan Anda scan QR pada kartu SPNB DIGITAL.');
+    
+    // Restart scanner after delay
+    setTimeout(() => {
+      if (qrScanner && document.getElementById('qr-reader')) {
+        initQrScanner();
+      }
+    }, 2000);
+  }
+}
+
+function parseActivationUrl(url) {
+  try {
+    // Handle full URLs
+    if (url.includes('/aktivasi') || url.includes('/c/')) {
+      const urlObj = new URL(url);
+      
+      // Format: /aktivasi?token=xxx
+      if (urlObj.pathname.includes('/aktivasi') || urlObj.hash.includes('/aktivasi')) {
+        const token = urlObj.searchParams.get('token');
+        if (token) {
+          return `/aktivasi?token=${token}`;
+        }
+      }
+      
+      // Format: /c/xxx (card redirect)
+      const cardMatch = url.match(/\/c\/([a-zA-Z0-9_-]+)/);
+      if (cardMatch) {
+        return `/aktivasi?token=${cardMatch[1]}`;
+      }
+    }
+    
+    // Handle hash-based URLs
+    if (url.includes('#/aktivasi') || url.includes('#/c/')) {
+      const hashPart = url.split('#')[1];
+      if (hashPart) {
+        if (hashPart.includes('/aktivasi')) {
+          const tokenMatch = hashPart.match(/token=([a-zA-Z0-9_-]+)/);
+          if (tokenMatch) {
+            return `/aktivasi?token=${tokenMatch[1]}`;
+          }
+        }
+        const cardMatch = hashPart.match(/\/c\/([a-zA-Z0-9_-]+)/);
+        if (cardMatch) {
+          return `/aktivasi?token=${cardMatch[1]}`;
+        }
+      }
+    }
+    
+    // Handle direct token (just the token string)
+    if (/^[a-zA-Z0-9_-]{10,}$/.test(url)) {
+      return `/aktivasi?token=${url}`;
+    }
+    
+    return null;
+  } catch (e) {
+    console.error('Parse URL error:', e);
+    return null;
+  }
+}
+
+function updateScannerStatus(type, message) {
+  const statusEl = document.getElementById('scanner-status');
+  if (!statusEl) return;
+  
+  const icons = {
+    loading: '<div class="loading-spinner" style="width:20px;height:20px"></div>',
+    ready: '<span class="status-dot status-active"></span>',
+    success: '<span class="status-dot status-active" style="background:var(--green-500)"></span>',
+    error: '<span class="status-dot" style="background:var(--red-500)"></span>'
+  };
+  
+  statusEl.innerHTML = `${icons[type] || ''}<span>${message}</span>`;
+  statusEl.className = `scanner-status scanner-status-${type}`;
+}
+
+function closeScannerModal() {
+  // Stop scanner if running
+  if (qrScanner) {
+    qrScanner.stop().catch(console.error);
+    qrScanner = null;
+  }
+  
+  closeModal();
+}
+
 function render() {
   state.mobileMenu = false;
   const route = getRoute();
@@ -5637,6 +6073,12 @@ root.addEventListener("click", (event) => {
 
   if (event.target.closest("[data-batch-modal]")) { batchModal(); return; }
   if (event.target.closest("[data-reseller-modal]")) { resellerModal(); return; }
+  
+  // QR Scanner handlers
+  if (event.target.closest("[data-open-scanner]")) { openScannerModal(); return; }
+  if (event.target.closest("[data-scanner-close]")) { closeScannerModal(); return; }
+  if (event.target.closest("#switch-camera-btn")) { switchCamera(); return; }
+  
   const reset = event.target.closest("[data-reset-modal]");
   if (reset) { resetModal(reset.dataset.resetModal); return; }
   const sell = event.target.closest("[data-sell-card]");
@@ -5719,6 +6161,58 @@ root.addEventListener("click", (event) => {
   // Save business profile
   if (event.target.closest("[data-save-profile]")) {
     handleSaveBusinessProfile();
+    return;
+  }
+
+  // Save card settings (destination mode)
+  if (event.target.closest("[data-save-card-settings]")) {
+    const cardSelect = document.getElementById('card-select');
+    const businessSelect = document.getElementById('business-select');
+    const selectedMode = document.querySelector('#destination-choice .choice-card.selected');
+    
+    if (!cardSelect?.value) {
+      toast('Pilih kartu terlebih dahulu.');
+      return;
+    }
+    
+    const cardId = cardSelect.value;
+    const businessId = businessSelect?.value || null;
+    const destinationMode = selectedMode?.dataset.mode || 'direct_google';
+    
+    updateCardDestination(cardId, destinationMode, businessId);
+    return;
+  }
+
+  // Manage card (show card details)
+  const manageCard = event.target.closest("[data-manage-card]");
+  if (manageCard) {
+    const cardId = manageCard.dataset.manageCard;
+    // Find the card and pre-select it in the form
+    const cardSelect = document.getElementById('card-select');
+    if (cardSelect) {
+      cardSelect.value = cardId;
+      // Update the destination choice based on selected card
+      const selectedOption = cardSelect.querySelector(`option[value="${cardId}"]`);
+      if (selectedOption) {
+        const mode = selectedOption.dataset.mode || 'direct_google';
+        document.querySelectorAll('#destination-choice .choice-card').forEach(c => {
+          c.classList.toggle('selected', c.dataset.mode === mode);
+        });
+      }
+      // Scroll to the form
+      document.querySelector('.panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return;
+  }
+
+  // Choice card selection (for destination mode)
+  const choiceCard = event.target.closest(".choice-card[data-mode]");
+  if (choiceCard) {
+    const parent = choiceCard.closest('.choice-grid');
+    if (parent) {
+      parent.querySelectorAll('.choice-card').forEach(c => c.classList.remove('selected'));
+      choiceCard.classList.add('selected');
+    }
     return;
   }
 

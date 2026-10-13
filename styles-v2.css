@@ -1328,3 +1328,199 @@ td { font-weight: 500; }
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ============ RESPONSIVE TABLE - CARD LAYOUT FOR MOBILE ============ */
+
+/* Mobile card-based table for admin */
+@media (max-width: 768px) {
+  .table-wrap {
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+  }
+  
+  .table-wrap table {
+    min-width: 0;
+    display: block;
+  }
+  
+  .table-wrap thead {
+    display: none;
+  }
+  
+  .table-wrap tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .table-wrap tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  
+  .table-wrap tbody td {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    border: none;
+    white-space: normal;
+  }
+  
+  .table-wrap tbody td::before {
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
+  }
+  
+  /* First column (Serial) - full width and prominent */
+  .table-wrap tbody td:first-child {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  
+  .table-wrap tbody td:first-child::before {
+    display: none;
+  }
+  
+  .table-wrap tbody td:first-child strong {
+    font-size: 15px;
+    color: var(--heading);
+  }
+  
+  /* Last column (action button) - position in first row */
+  .table-wrap tbody td:last-child {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    padding: 0;
+  }
+  
+  .table-wrap tbody td:last-child::before {
+    display: none;
+  }
+  
+  .table-wrap tbody tr {
+    position: relative;
+  }
+  
+  /* Status badge adjustments */
+  .table-wrap tbody .status {
+    align-self: flex-start;
+  }
+  
+  /* Action menu button */
+  .table-wrap .action-menu {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--soft);
+    font-size: 18px;
+  }
+  
+  /* Hide less important columns on very small screens */
+  .table-wrap tbody td.hide-mobile-sm {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .table-wrap tbody tr {
+    grid-template-columns: 1fr;
+  }
+  
+  .table-wrap tbody td {
+    padding: 4px 0;
+  }
+  
+  /* Stack all cells vertically */
+  .table-wrap tbody td:first-child {
+    padding-bottom: 10px;
+    margin-bottom: 6px;
+  }
+}
+
+/* Dashboard grid adjustments for mobile */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .panel {
+    padding: 16px;
+  }
+  
+  .panel-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .panel-title .btn {
+    width: 100%;
+  }
+  
+  /* Exception grid (alert cards) */
+  .exception-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .exception-grid button {
+    padding: 14px 16px;
+  }
+  
+  /* Activity list adjustments */
+  .activity-list {
+    gap: 0;
+  }
+  
+  .activity-item {
+    padding: 14px 0;
+  }
+  
+  .activity-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+  
+  .activity-item > div {
+    min-width: 0;
+  }
+  
+  .activity-item strong {
+    font-size: 13px;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .activity-item span {
+    font-size: 11px;
+  }
+  
+  .activity-item time {
+    font-size: 10px;
+    white-space: nowrap;
+  }
+}

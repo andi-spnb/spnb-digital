@@ -12,7 +12,11 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="styles-v2.css" />
+  
+  <!-- External Libraries -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  
   <script>
     // Fallback jika Supabase gagal load
     if (!window.supabase) {
@@ -21,7 +25,9 @@
           return {
             from: function() { return { select: function() { return { limit: function() { return Promise.resolve({ data: null, error: true }); }, eq: function() { return this; }, single: function() { return Promise.resolve({ data: null }); }, order: function() { return this; }, in: function() { return this; } }; } }; },
             auth: { getSession: function() { return Promise.resolve({ data: { session: null } }); }, onAuthStateChange: function() {}, signUp: function() { return Promise.resolve({ data: null, error: { message: 'Supabase not loaded' } }); }, signInWithPassword: function() { return Promise.resolve({ data: null, error: { message: 'Supabase not loaded' } }); }, signOut: function() { return Promise.resolve({}); }, getUser: function() { return Promise.resolve({ data: { user: null } }); }, updateUser: function() { return Promise.resolve({ error: { message: 'Supabase not loaded' } }); } },
-            rpc: function() { return Promise.resolve({ data: null, error: true }); }
+            rpc: function() { return Promise.resolve({ data: null, error: true }); },
+            functions: { invoke: function() { return Promise.resolve({ data: null, error: true }); } },
+            storage: { from: function() { return { upload: function() { return Promise.resolve({ error: true }); }, remove: function() { return Promise.resolve({ error: true }); }, getPublicUrl: function() { return { data: { publicUrl: '' } }; } }; } }
           };
         }
       };
@@ -33,6 +39,31 @@
 <body>
   <div id="app"></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="main.js"></script>
+  
+  <!-- Application Scripts (order matters) -->
+  <script src="js/config.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/helpers.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/activation.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/handlers.js"></script>
+  <script src="js/image-upload.js"></script>
+  <script src="js/modals.js"></script>
+  <script src="js/scanner.js"></script>
+  <script src="js/pages-public.js"></script>
+  <script src="js/pages-auth.js"></script>
+  <script src="js/pages-dashboard.js"></script>
+  <script src="js/pages-owner.js"></script>
+  <script src="js/pages-reseller.js"></script>
+  <script src="js/pages-admin.js"></script>
+  <script src="js/pages-profile.js"></script>
+  <script src="js/events.js"></script>
+  <script src="js/render.js"></script>
 </body>
 </html>

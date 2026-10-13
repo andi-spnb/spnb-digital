@@ -1,0 +1,421 @@
+/**
+ * Activation Flow Functions
+ * Handles card activation workflow including token validation,
+ * user registration/login, business creation, and card claiming.
+ */
+
+// Parse token from URL query string
+function getActivationTokenFromUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('token');
+}
+
+// Validate card token and get card info (calls Edge Function or RPC)
+async function validateCardToken(token) {
+  if (!USE_REAL_DATA) {
+    // Demo mode: simulate token validation
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Demo tokens for testing
+    if (token === 'demo-valid') {
+      return {
+        valid: true,
+        cardId: 'demo-card-id',
+        serial: 'KRT-000126',
+        status: 'sold_unclaimed',
+        claimSessionToken: 'demo-claim-session-token'
+      };
+    } else if (token === 'demo-claimed') {
+      return {
+        valid: false,
+        error: 'already_claimed',
+        message: 'Kartu ini sudah diaktifkan oleh pemilik lain.'
+      };
+    } else if (token === 'demo-not-sold') {
+      return {
+        valid: false,
+        error: 'not_sold',
+        message: 'Kartu ini belum ditandai terjual oleh reseller.'
+      };
+    }
+    
+    // Default demo: treat as valid card ready for activation
+    return {
+      valid: true,
+      cardId: 'demo-card-id',
+      serial: 'KRT-000126',
+      status: 'sold_unclaimed',
+      claimSessionToken: 'demo-claim-session-token'
+    };
+  }
+  
+  try {
+    // In production, this would call an Edge Function that:
+    // 1. Validates the token hash
+    // 2. Checks the card is in 'sold_unclaimed' state
+    // 3. Creates a claim_session with expiry
+    // 4. Returns card info and claim session token
+    
+    const { data, error } = await supabaseClient.functions.invoke('validate-card-token', {
+      body: { token }
+    });
+    
+    if (error) {
+      console.error('Token validation error:', error);
+      return {
+        valid: false,
+        error: 'invalid',
+        message: 'Token tidak valid atau sudah kedaluwarsa.'
+      };
+    }
+    
+    return data;
+  } catch (e) {
+    console.error('Token validation exception:', e);
+    return {
+      valid: false,
+      error: 'error',
+      message: 'Terjadi kesalahan saat memvalidasi token.'
+    };
+  }
+}
+
+// Initialize activation flow
+async function initActivationFlow() {
+  const a = state.activation;
+  
+  // Get token from URL
+  const token = getActivationTokenFromUrl();
+  a.token = token;
+  
+  // If no token, show demo mode
+  if (!token) {
+    a.cardStatus = 'demo';
+    a.cardSerial = 'KRT-000126';
+    a.step = 1;
+    return;
+  }
+  
+  // Validate the token
+  a.isLoading = true;
+  a.cardStatus = 'validating';
+  render();
+  
+  const result = await validateCardToken(token);
+  a.isLoading = false;
+  
+  if (result.valid) {
+    a.cardId = result.cardId;
+    a.cardSerial = result.serial;
+    a.cardStatus = 'valid';
+    a.claimSessionToken = result.claimSessionToken;
+    
+    // Check if user is already logged in
+    if (isLoggedIn()) {
+      // Skip to business selection (step 3)
+      await loadUserBusinesses();
+      a.step = 3;
+    } else {
+      a.step = 1;
+    }
+  } else {
+    a.cardStatus = result.error;
+    a.errorMessage = result.message;
+    a.step = 0; // Error state
+  }
+  
+  render();
+}
+
+// Load user's existing businesses for selection
+async function loadUserBusinesses() {
+  const a = state.activation;
+  
+  if (!USE_REAL_DATA) {
+    // Demo: no existing businesses for new users
+    a.existingBusinesses = [];
+    a.createNewBusiness = true;
+    return;
+  }
+  
+  try {
+    const businesses = await getMyBusinesses();
+    a.existingBusinesses = businesses || [];
+    a.createNewBusiness = businesses.length === 0;
+    
+    if (businesses.length > 0) {
+      a.selectedBusinessId = businesses[0].id;
+    }
+  } catch (e) {
+    console.error('Load businesses error:', e);
+    a.existingBusinesses = [];
+    a.createNewBusiness = true;
+  }
+}
+
+// Handle registration during activation
+async function handleActivationRegister() {
+  const a = state.activation;
+  
+  // Validate fields
+  if (!a.email?.trim()) {
+    toast('Email harus diisi.');
+    return false;
+  }
+  if (!a.email.includes('@')) {
+    toast('Format email tidak valid.');
+    return false;
+  }
+  if (!a.phone?.trim()) {
+    toast('Nomor HP harus diisi.');
+    return false;
+  }
+  if (!a.password || a.password.length < 8) {
+    toast('Password harus minimal 8 karakter.');
+    return false;
+  }
+  if (a.password !== a.confirm) {
+    toast('Konfirmasi password tidak sama.');
+    return false;
+  }
+  
+  a.isSubmitting = true;
+  render();
+  
+  try {
+    const displayName = a.displayName?.trim() || a.email.split('@')[0];
+    const { data, error } = await signUp(a.email, a.password, displayName, a.phone);
+    
+    if (error) {
+      console.error('Registration error:', error);
+      a.isSubmitting = false;
+      
+      if (error.message.includes('already registered')) {
+        toast('Email sudah terdaftar. Silakan login.');
+        a.authMode = 'login';
+      } else {
+        toast('Gagal mendaftar: ' + error.message);
+      }
+      render();
+      return false;
+    }
+    
+    // Auto-login after registration (if email confirmation is disabled)
+    if (data?.user && data?.session) {
+      await loadUserData(data.user);
+      await loadUserBusinesses();
+      a.isSubmitting = false;
+      a.step = 3;
+      render();
+      toast('Akun berhasil dibuat!');
+      return true;
+    } else {
+      // Email confirmation required
+      a.isSubmitting = false;
+      toast('Silakan cek email untuk konfirmasi akun.');
+      render();
+      return false;
+    }
+  } catch (e) {
+    console.error('Registration exception:', e);
+    a.isSubmitting = false;
+    toast('Terjadi kesalahan. Silakan coba lagi.');
+    render();
+    return false;
+  }
+}
+
+// Handle login during activation
+async function handleActivationLogin() {
+  const a = state.activation;
+  
+  if (!a.email?.trim()) {
+    toast('Email harus diisi.');
+    return false;
+  }
+  if (!a.password) {
+    toast('Password harus diisi.');
+    return false;
+  }
+  
+  a.isSubmitting = true;
+  render();
+  
+  try {
+    const { data, error } = await signInWithEmail(a.email, a.password);
+    
+    if (error) {
+      console.error('Login error:', error);
+      a.isSubmitting = false;
+      
+      if (error.message.includes('Invalid login credentials')) {
+        toast('Email atau password salah.');
+      } else {
+        toast('Gagal login: ' + error.message);
+      }
+      render();
+      return false;
+    }
+    
+    if (data?.user) {
+      await loadUserData(data.user);
+      await loadUserBusinesses();
+      a.isSubmitting = false;
+      a.step = 3;
+      render();
+      toast('Login berhasil!');
+      return true;
+    }
+  } catch (e) {
+    console.error('Login exception:', e);
+    a.isSubmitting = false;
+    toast('Terjadi kesalahan. Silakan coba lagi.');
+    render();
+    return false;
+  }
+  
+  return false;
+}
+
+// Handle business creation during activation
+async function handleCreateActivationBusiness() {
+  const a = state.activation;
+  
+  if (!a.businessName?.trim() || a.businessName.length < 2) {
+    toast('Nama usaha harus diisi (minimal 2 karakter).');
+    return false;
+  }
+  if (!a.businessSlug?.trim() || a.businessSlug.length < 3) {
+    toast('Alamat halaman harus diisi (minimal 3 karakter).');
+    return false;
+  }
+  if (!a.googleReviewUrl?.trim()) {
+    toast('Link Google Rating harus diisi.');
+    return false;
+  }
+  
+  // Validate Google URL format
+  const googleUrlPattern = /^https:\/\/([^/?#]+\.)?(google\.[a-z.]+|g\.page|maps\.app\.goo\.gl)/i;
+  if (!googleUrlPattern.test(a.googleReviewUrl)) {
+    toast('Format link Google Rating tidak valid.');
+    return false;
+  }
+  
+  if (!USE_REAL_DATA) {
+    // Demo mode: simulate business creation
+    a.selectedBusinessId = 'demo-business-id';
+    return true;
+  }
+  
+  a.isSubmitting = true;
+  render();
+  
+  try {
+    // Create business
+    const { data: business, error: bizError } = await createBusiness({
+      name: a.businessName.trim(),
+      google_review_url: a.googleReviewUrl.trim(),
+      theme_color: '#1769c2'
+    });
+    
+    if (bizError) {
+      console.error('Create business error:', bizError);
+      a.isSubmitting = false;
+      toast('Gagal membuat profil usaha: ' + bizError.message);
+      render();
+      return false;
+    }
+    
+    // Create slug
+    const slug = a.businessSlug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const { error: slugError } = await supabaseClient
+      .from('business_slugs')
+      .insert({
+        slug: slug,
+        business_id: business.id,
+        is_current: true
+      });
+    
+    if (slugError) {
+      console.error('Create slug error:', slugError);
+      // Continue anyway, slug is optional
+    }
+    
+    a.selectedBusinessId = business.id;
+    a.isSubmitting = false;
+    render();
+    return true;
+  } catch (e) {
+    console.error('Create business exception:', e);
+    a.isSubmitting = false;
+    toast('Terjadi kesalahan. Silakan coba lagi.');
+    render();
+    return false;
+  }
+}
+
+// Final step: claim the card
+async function handleClaimCard() {
+  const a = state.activation;
+  
+  if (!a.selectedBusinessId) {
+    toast('Pilih profil usaha terlebih dahulu.');
+    return false;
+  }
+  
+  if (!USE_REAL_DATA) {
+    // Demo mode: simulate card claim
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    a.step = 5; // Success
+    render();
+    return true;
+  }
+  
+  a.isSubmitting = true;
+  render();
+  
+  try {
+    const { data, error } = await claimCard(
+      a.claimSessionToken,
+      a.selectedBusinessId,
+      a.destinationMode
+    );
+    
+    if (error) {
+      console.error('Claim card error:', error);
+      a.isSubmitting = false;
+      
+      if (error.message.includes('invalid or expired')) {
+        toast('Sesi aktivasi sudah kedaluwarsa. Silakan scan ulang QR kartu.');
+        a.step = 0;
+        a.cardStatus = 'expired';
+        a.errorMessage = 'Sesi aktivasi sudah kedaluwarsa. Silakan scan ulang QR pada kartu.';
+      } else if (error.message.includes('already been claimed')) {
+        toast('Kartu sudah diaktifkan oleh orang lain.');
+        a.step = 0;
+        a.cardStatus = 'already_claimed';
+        a.errorMessage = 'Kartu ini sudah diaktifkan oleh pemilik lain.';
+      } else {
+        toast('Gagal mengaktifkan kartu: ' + error.message);
+      }
+      render();
+      return false;
+    }
+    
+    a.isSubmitting = false;
+    a.step = 5; // Success
+    
+    // Reload owner data
+    state.ownerData = await loadOwnerDashboardData();
+    
+    render();
+    toast('Kartu berhasil diaktifkan!');
+    return true;
+  } catch (e) {
+    console.error('Claim card exception:', e);
+    a.isSubmitting = false;
+    toast('Terjadi kesalahan. Silakan coba lagi.');
+    render();
+    return false;
+  }
+}

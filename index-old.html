@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Prototype SPNB DIGITAL — kartu Google Review dengan QR dan NFC untuk UMKM." />
+  <meta name="theme-color" content="#1265d8" />
+  <link rel="icon" href="logo.png" type="image/png" />
+  <title>SPNB DIGITAL — Kartu Google Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles-v2.css" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script>
+    // Fallback jika Supabase gagal load
+    if (!window.supabase) {
+      window.supabase = {
+        createClient: function() {
+          return {
+            from: function() { return { select: function() { return { limit: function() { return Promise.resolve({ data: null, error: true }); }, eq: function() { return this; }, single: function() { return Promise.resolve({ data: null }); }, order: function() { return this; }, in: function() { return this; } }; } }; },
+            auth: { getSession: function() { return Promise.resolve({ data: { session: null } }); }, onAuthStateChange: function() {}, signUp: function() { return Promise.resolve({ data: null, error: { message: 'Supabase not loaded' } }); }, signInWithPassword: function() { return Promise.resolve({ data: null, error: { message: 'Supabase not loaded' } }); }, signOut: function() { return Promise.resolve({}); }, getUser: function() { return Promise.resolve({ data: { user: null } }); }, updateUser: function() { return Promise.resolve({ error: { message: 'Supabase not loaded' } }); } },
+            rpc: function() { return Promise.resolve({ data: null, error: true }); }
+          };
+        }
+      };
+      console.warn('⚠️ Supabase library tidak tersedia, menggunakan mode offline');
+    }
+  </script>
+  <script src="supabase-config.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="main.js"></script>
+</body>
+</html>
