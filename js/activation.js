@@ -57,8 +57,36 @@ async function validateCardToken(token) {
   }
   
   try {
-    // Try to find card by ID or serial
+    // Try using RPC function first (bypasses RLS)
+    try {
+      const { data: rpcData, error: rpcError } = await supabaseClient.rpc('validate_card_for_activation', {
+        p_token: token
+      });
+      
+      if (!rpcError && rpcData) {
+        console.log('RPC validate_card_for_activation result:', rpcData);
+        if (rpcData.error) {
+          return {
+            valid: false,
+            error: rpcData.error,
+            message: rpcData.message
+          };
+        }
+        return {
+          valid: true,
+          cardId: rpcData.card_id,
+          serial: rpcData.serial,
+          status: rpcData.lifecycle_state,
+          claimSessionToken: rpcData.card_id
+        };
+      }
+    } catch (rpcEx) {
+      console.log('RPC validate_card_for_activation not available:', rpcEx.message);
+    }
+    
+    // Fallback: Try direct query (works if RLS allows or user is admin)
     let card = null;
+    let queryError = null;
     
     // Check if token is a UUID format (card ID)
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -69,31 +97,46 @@ async function validateCardToken(token) {
         .from('cards')
         .select('id, serial, lifecycle_state, owner_id')
         .eq('id', token)
-        .single();
+        .maybeSingle();
       
-      if (!error && data) {
+      if (error) {
+        console.log('Card query by ID error:', error.message, error.code);
+        queryError = error;
+      } else if (data) {
         card = data;
       }
     }
     
     // If not found by ID, try by serial
-    if (!card) {
+    if (!card && !queryError) {
       const { data, error } = await supabaseClient
         .from('cards')
         .select('id, serial, lifecycle_state, owner_id')
         .eq('serial', token)
-        .single();
+        .maybeSingle();
       
-      if (!error && data) {
+      if (error) {
+        console.log('Card query by serial error:', error.message, error.code);
+        queryError = error;
+      } else if (data) {
         card = data;
       }
+    }
+    
+    // If we got RLS/permission error, show appropriate message
+    if (queryError && (queryError.code === '42501' || queryError.message.includes('permission') || queryError.message.includes('RLS'))) {
+      return {
+        valid: false,
+        error: 'permission',
+        message: 'Tidak dapat memvalidasi kartu. Silakan hubungi admin untuk bantuan.'
+      };
     }
     
     if (!card) {
       return {
         valid: false,
         error: 'invalid',
-        message: 'Token tidak valid. Kartu tidak ditemukan.'
+        message: 'Kartu tidak ditemukan. Pastikan link aktivasi benar atau hubungi reseller.'
       };
     }
     
