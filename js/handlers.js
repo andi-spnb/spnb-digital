@@ -661,3 +661,79 @@ async function handleResetCard(cardId) {
     toast('Terjadi kesalahan.');
   }
 }
+
+// Handle bulk distribute cards
+async function handleBulkDistribute() {
+  const resellerId = document.getElementById('bulk-distribute-reseller')?.value;
+  const note = document.getElementById('bulk-distribute-note')?.value?.trim() || '';
+  
+  if (!resellerId) {
+    toast('Pilih reseller tujuan.');
+    return;
+  }
+  
+  if (state.selectedCards.length === 0) {
+    toast('Tidak ada kartu yang dipilih.');
+    return;
+  }
+  
+  try {
+    toast('Mendistribusikan kartu...');
+    
+    if (USE_REAL_DATA) {
+      const { data, error } = await allocateCardsToReseller(state.selectedCards, resellerId, note);
+      
+      if (error) {
+        toast('Gagal mendistribusikan: ' + (error.message || 'Terjadi kesalahan'));
+        return;
+      }
+    }
+    
+    closeModal();
+    const count = state.selectedCards.length;
+    state.selectedCards = [];
+    state.adminData = await loadAdminDashboardData();
+    render();
+    toast(`${count} kartu berhasil didistribusikan.`);
+  } catch (e) {
+    console.error('Bulk distribute error:', e);
+    toast('Terjadi kesalahan.');
+  }
+}
+
+// Handle bulk block cards
+async function handleBulkBlock() {
+  if (state.selectedCards.length === 0) {
+    toast('Tidak ada kartu yang dipilih.');
+    return;
+  }
+  
+  if (!confirm(`Yakin ingin memblokir ${state.selectedCards.length} kartu?`)) {
+    return;
+  }
+  
+  try {
+    toast('Memblokir kartu...');
+    
+    if (USE_REAL_DATA) {
+      const { error } = await supabaseClient
+        .from('cards')
+        .update({ service_state: 'blocked' })
+        .in('id', state.selectedCards);
+      
+      if (error) {
+        toast('Gagal memblokir: ' + error.message);
+        return;
+      }
+    }
+    
+    const count = state.selectedCards.length;
+    state.selectedCards = [];
+    state.adminData = await loadAdminDashboardData();
+    render();
+    toast(`${count} kartu berhasil diblokir.`);
+  } catch (e) {
+    console.error('Bulk block error:', e);
+    toast('Terjadi kesalahan.');
+  }
+}

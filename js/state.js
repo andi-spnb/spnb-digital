@@ -37,6 +37,9 @@ const state = {
     owners: { page: 1, perPage: 20, total: 0 },
     logs: { page: 1, perPage: 20, total: 0 }
   },
+  // Bulk selection
+  selectedCards: [],
+  selectAllCards: false,
   // Activation flow state
   activation: {
     step: 1,

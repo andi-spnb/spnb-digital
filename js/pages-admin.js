@@ -288,6 +288,7 @@ function adminCardsPage() {
   const filters = state.filters.cards;
   const pagination = state.pagination.cards;
   const resellers = state.adminData?.resellers || [];
+  const selectedCards = state.selectedCards || [];
   
   // Get and filter cards
   let cards = [];
@@ -335,6 +336,9 @@ function adminCardsPage() {
   const startIdx = (pagination.page - 1) * pagination.perPage;
   const paginatedCards = cards.slice(startIdx, startIdx + pagination.perPage);
   
+  // Check if all visible cards are selected
+  const allVisibleSelected = paginatedCards.length > 0 && paginatedCards.every(c => selectedCards.includes(c.id || c.serial));
+  
   const content = `
     <div class="toolbar">
       <div class="filters">
@@ -361,10 +365,22 @@ function adminCardsPage() {
       </div>
     </div>
     
+    ${selectedCards.length > 0 ? `
+      <div class="bulk-action-bar">
+        <span>${selectedCards.length} kartu dipilih</span>
+        <div class="bulk-actions">
+          <button class="btn btn-ghost btn-sm" data-clear-selection>Batal</button>
+          <button class="btn btn-secondary btn-sm" data-bulk-distribute>Distribusikan</button>
+          <button class="btn btn-secondary btn-sm" data-bulk-block>Blokir</button>
+        </div>
+      </div>
+    ` : ''}
+    
     <div class="table-wrap table-responsive">
       <table>
         <thead>
           <tr>
+            <th style="width:40px"><input type="checkbox" data-select-all-cards ${allVisibleSelected ? 'checked' : ''} /></th>
             <th>Serial</th>
             <th>Status</th>
             <th>Reseller</th>
@@ -376,11 +392,14 @@ function adminCardsPage() {
         </thead>
         <tbody>
           ${paginatedCards.length === 0 ? `
-            <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">
+            <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">
               ${filters.search || filters.status || filters.reseller ? 'Tidak ada kartu yang cocok dengan filter.' : 'Belum ada kartu.'}
             </td></tr>
-          ` : paginatedCards.map(c => `
-            <tr>
+          ` : paginatedCards.map(c => {
+            const isSelected = selectedCards.includes(c.id || c.serial);
+            return `
+            <tr class="${isSelected ? 'selected-row' : ''}">
+              <td data-label=""><input type="checkbox" data-select-card="${c.id || c.serial}" ${isSelected ? 'checked' : ''} /></td>
               <td data-label="Serial"><strong>${c.serial}</strong></td>
               <td data-label="Status">${statusBadge(c.status)}</td>
               <td data-label="Reseller">${c.reseller}</td>
@@ -388,7 +407,8 @@ function adminCardsPage() {
               <td data-label="Aktivasi">${c.activated}</td>
               <td data-label="Interaksi">${c.interactions}</td>
               <td data-label=""><button class="action-menu" data-card-menu="${c.id || c.serial}">⋯</button></td>
-            </tr>`).join("")}
+            </tr>`;
+          }).join("")}
         </tbody>
       </table>
     </div>

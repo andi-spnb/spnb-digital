@@ -227,3 +227,40 @@ function cardActionModal(card) {
     </div>
   `);
 }
+
+// Modal bulk distribute
+function bulkDistributeModal() {
+  const resellers = state.adminData?.resellers || [];
+  const selectedCount = state.selectedCards.length;
+  
+  openModal(`
+    <div class="row-between">
+      <div><h2>Distribusikan ${selectedCount} Kartu</h2><p>Pilih reseller tujuan</p></div>
+      <button class="icon-btn" data-modal-close>${icons.close}</button>
+    </div>
+    <div class="bulk-distribute-content">
+      <div class="info-box" style="margin-bottom:16px">
+        ${icons.help}
+        <div>
+          <strong>${selectedCount} kartu dipilih</strong>
+          <p>Kartu akan dipindahkan ke stok reseller yang dipilih.</p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Reseller Tujuan <span class="required">*</span></label>
+        <select class="input" id="bulk-distribute-reseller" required>
+          <option value="">Pilih reseller...</option>
+          ${resellers.map(r => `<option value="${r.id}">${r.name} (${r.city || '-'})</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Catatan (opsional)</label>
+        <input class="input" id="bulk-distribute-note" placeholder="Catatan distribusi..." />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close>Batal</button>
+      <button class="btn btn-primary" data-confirm-bulk-distribute>${icons.stock} Distribusikan</button>
+    </div>
+  `);
+}

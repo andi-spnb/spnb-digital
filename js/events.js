@@ -443,6 +443,82 @@ root.addEventListener("click", (event) => {
     return;
   }
 
+  // Bulk selection handlers
+  // Select all cards checkbox
+  if (event.target.closest("[data-select-all-cards]")) {
+    const checkbox = event.target.closest("[data-select-all-cards]");
+    const isChecked = checkbox.checked;
+    
+    // Get current visible card IDs
+    const visibleCardIds = Array.from(document.querySelectorAll('[data-select-card]'))
+      .map(cb => cb.dataset.selectCard);
+    
+    if (isChecked) {
+      // Add all visible cards to selection
+      visibleCardIds.forEach(id => {
+        if (!state.selectedCards.includes(id)) {
+          state.selectedCards.push(id);
+        }
+      });
+    } else {
+      // Remove all visible cards from selection
+      state.selectedCards = state.selectedCards.filter(id => !visibleCardIds.includes(id));
+    }
+    render();
+    return;
+  }
+
+  // Single card checkbox
+  const selectCard = event.target.closest("[data-select-card]");
+  if (selectCard) {
+    const cardId = selectCard.dataset.selectCard;
+    const isChecked = selectCard.checked;
+    
+    if (isChecked) {
+      if (!state.selectedCards.includes(cardId)) {
+        state.selectedCards.push(cardId);
+      }
+    } else {
+      state.selectedCards = state.selectedCards.filter(id => id !== cardId);
+    }
+    render();
+    return;
+  }
+
+  // Clear selection
+  if (event.target.closest("[data-clear-selection]")) {
+    state.selectedCards = [];
+    render();
+    return;
+  }
+
+  // Bulk distribute
+  if (event.target.closest("[data-bulk-distribute]")) {
+    if (state.selectedCards.length === 0) {
+      toast('Pilih kartu terlebih dahulu.');
+      return;
+    }
+    bulkDistributeModal();
+    return;
+  }
+
+  // Bulk block
+  if (event.target.closest("[data-bulk-block]")) {
+    if (state.selectedCards.length === 0) {
+      toast('Pilih kartu terlebih dahulu.');
+      return;
+    }
+    handleBulkBlock();
+    return;
+  }
+
+  // Confirm bulk distribute
+  const confirmBulkDistribute = event.target.closest("[data-confirm-bulk-distribute]");
+  if (confirmBulkDistribute) {
+    handleBulkDistribute();
+    return;
+  }
+
   // Export CSV handlers
   if (event.target.closest("[data-export-cards]")) {
     exportCardsCSV();
