@@ -6,28 +6,44 @@ const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappText}`;
 // ============ SUPABASE CLIENT ============
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Flag untuk menggunakan data real atau mock
-let USE_REAL_DATA = false;
+// Flag untuk menggunakan data real atau mock - default TRUE untuk production
+let USE_REAL_DATA = true;
 
 // Auth state
 let currentUser = null;
 let currentAccount = null;
 let currentRoles = [];
 let authInitialized = false;
+let connectionChecked = false;
 
 // Check koneksi dan set flag
 async function checkSupabaseConnection() {
+  if (connectionChecked) return USE_REAL_DATA;
+  
   try {
-    const { data, error } = await supabaseClient.from('accounts').select('user_id').limit(1);
+    // Test koneksi dengan query sederhana
+    const { error } = await supabaseClient.from('accounts').select('user_id').limit(1);
     if (!error) {
       USE_REAL_DATA = true;
-      console.log('✅ Connected to Supabase');
+      console.log('✅ Connected to Supabase - using real data');
     } else {
-      console.log('⚠️ Supabase tables not ready, using mock data');
+      // Cek apakah error karena RLS atau tabel tidak ada
+      if (error.code === 'PGRST116' || error.message?.includes('permission')) {
+        // RLS blocking - koneksi OK, tabel ada
+        USE_REAL_DATA = true;
+        console.log('✅ Connected to Supabase (RLS active) - using real data');
+      } else {
+        USE_REAL_DATA = false;
+        console.log('⚠️ Supabase tables not ready, using mock data:', error.message);
+      }
     }
   } catch (e) {
-    console.log('⚠️ Supabase connection failed, using mock data');
+    USE_REAL_DATA = false;
+    console.log('⚠️ Supabase connection failed, using mock data:', e.message);
   }
+  
+  connectionChecked = true;
+  return USE_REAL_DATA;
 }
 
 // ============ AUTH FUNCTIONS ============
@@ -37,6 +53,9 @@ async function initAuth() {
   if (authInitialized) return;
   
   try {
+    // Ensure connection is checked first
+    await checkSupabaseConnection();
+    
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session?.user) {
       await loadUserData(session.user);
@@ -48,6 +67,8 @@ async function initAuth() {
       console.log('Auth event:', event);
       if (event === 'SIGNED_IN' && session?.user) {
         await loadUserData(session.user);
+        // Load dashboard data based on role
+        await loadDashboardDataForRole();
         redirectToDashboard();
       } else if (event === 'SIGNED_OUT') {
         clearUserData();
@@ -56,6 +77,23 @@ async function initAuth() {
     });
   } catch (e) {
     console.error('Auth init error:', e);
+  }
+}
+
+// Load dashboard data based on user role
+async function loadDashboardDataForRole() {
+  if (!currentUser || !USE_REAL_DATA) return;
+  
+  try {
+    if (currentRoles.includes('admin')) {
+      state.adminData = await loadAdminDashboardData();
+    } else if (currentRoles.includes('reseller')) {
+      state.resellerData = await loadResellerDashboardData();
+    } else if (currentRoles.includes('owner')) {
+      state.ownerData = await loadOwnerDashboardData();
+    }
+  } catch (e) {
+    console.error('Load dashboard data error:', e);
   }
 }
 
@@ -1982,56 +2020,138 @@ function mapCardStatus(lifecycleState) {
 // ============ DATA LOADING FUNCTIONS ============
 // Load data untuk dashboard owner
 async function loadOwnerDashboardData() {
-  if (!USE_REAL_DATA || !currentUser) return null;
+  if (!currentUser) return null;
+  
+  // Return mock data if not using real data
+  if (!USE_REAL_DATA) {
+    return {
+      businesses: [{
+        id: 'demo-biz-1',
+        name: state.businessProfile.name,
+        description: state.businessProfile.description,
+        address: state.businessProfile.address,
+        logo_url: state.businessProfile.logoUrl,
+        cover_url: state.businessProfile.bannerUrl,
+        google_review_url: state.businessProfile.googleReviewUrl,
+        whatsapp_e164: state.businessProfile.whatsapp ? normalizePhone(state.businessProfile.whatsapp) : null,
+        google_maps_url: state.businessProfile.mapsUrl,
+        theme_color: state.businessProfile.themeColor,
+        business_slugs: [{ slug: 'kopi-nusantara', is_current: true }]
+      }],
+      cards: [
+        { id: 'demo-card-1', serial: 'KRT-000125', lifecycle_state: 'claimed', destination_mode: 'direct_google', businesses: { name: state.businessProfile.name } },
+        { id: 'demo-card-2', serial: 'KRT-000127', lifecycle_state: 'claimed', destination_mode: 'profile', businesses: { name: state.businessProfile.name } },
+      ],
+      events: []
+    };
+  }
   
   try {
     // Load businesses
-    const { data: businesses } = await supabaseClient
+    const { data: businesses, error: bizError } = await supabaseClient
       .from('businesses')
       .select('*, business_slugs(slug, is_current)')
       .eq('owner_id', currentUser.id);
     
+    if (bizError) {
+      console.error('Load businesses error:', bizError);
+    }
+    
     // Load cards
-    const { data: cards } = await supabaseClient
+    const { data: cards, error: cardsError } = await supabaseClient
       .from('cards')
       .select('*, businesses(name)')
       .eq('owner_id', currentUser.id);
     
-    // Load recent interactions
-    const { data: events } = await supabaseClient
-      .from('interaction_events')
-      .select('*')
-      .in('business_id', (businesses || []).map(b => b.id))
-      .order('occurred_at', { ascending: false })
-      .limit(10);
+    if (cardsError) {
+      console.error('Load cards error:', cardsError);
+    }
     
-    return { businesses, cards, events };
+    // Load recent interactions only if we have businesses
+    let events = [];
+    if (businesses && businesses.length > 0) {
+      const businessIds = businesses.map(b => b.id);
+      const { data: eventsData, error: eventsError } = await supabaseClient
+        .from('interaction_events')
+        .select('*, cards(serial), businesses(name)')
+        .in('business_id', businessIds)
+        .order('occurred_at', { ascending: false })
+        .limit(10);
+      
+      if (!eventsError) {
+        events = eventsData || [];
+      }
+    }
+    
+    return { businesses: businesses || [], cards: cards || [], events };
   } catch (e) {
     console.error('Error loading owner data:', e);
-    return null;
+    return { businesses: [], cards: [], events: [] };
   }
 }
 
 // Load data untuk dashboard reseller
 async function loadResellerDashboardData() {
-  if (!USE_REAL_DATA || !currentUser) return null;
+  if (!currentUser) return null;
+  
+  // Return mock data if not using real data
+  if (!USE_REAL_DATA) {
+    return {
+      inventory: state.resellerCards.map((c, i) => ({
+        card_id: `demo-card-${i}`,
+        serial: c.serial,
+        lifecycle_state: c.status === 'stock' ? 'reseller_stock' : c.status === 'sold' ? 'sold_unclaimed' : 'claimed',
+        service_state: 'enabled',
+        provisioning_state: 'ready',
+        allocated_at: new Date().toISOString(),
+        sold_at: c.status !== 'stock' ? new Date().toISOString() : null,
+        claimed_at: c.status === 'active' ? new Date().toISOString() : null
+      }))
+    };
+  }
   
   try {
-    const { data: inventory } = await supabaseClient.rpc('get_my_reseller_inventory');
+    const { data: inventory, error } = await supabaseClient.rpc('get_my_reseller_inventory');
+    if (error) {
+      console.error('Load reseller inventory error:', error);
+      return { inventory: [] };
+    }
     return { inventory: inventory || [] };
   } catch (e) {
     console.error('Error loading reseller data:', e);
-    return null;
+    return { inventory: [] };
   }
 }
 
 // Load data untuk dashboard admin
 async function loadAdminDashboardData() {
-  if (!USE_REAL_DATA || !currentUser) return null;
+  if (!currentUser) return null;
+  
+  // Return mock data if not using real data
+  if (!USE_REAL_DATA) {
+    return {
+      cards: adminCards.map((c, i) => ({
+        id: `demo-card-${i}`,
+        serial: c[0],
+        lifecycle_state: c[1] === 'active' ? 'claimed' : c[1] === 'sold' ? 'sold_unclaimed' : c[1] === 'stock' ? 'reseller_stock' : c[1] === 'admin' ? 'admin_stock' : 'admin_stock',
+        resellers: { name: c[2] },
+        accounts: c[3] !== '—' ? { display_name: 'Demo User', phone_e164: '+628123456789' } : null,
+        businesses: c[3] !== '—' ? { name: 'Demo Business' } : null,
+        claimed_at: c[4] !== '—' ? new Date().toISOString() : null,
+        created_at: new Date().toISOString()
+      })),
+      resellers: [
+        { id: 'demo-res-1', name: 'Reseller Bandung', phone_e164: '+6281234567891', city: 'Bandung', status: 'active' },
+        { id: 'demo-res-2', name: 'Reseller Jakarta', phone_e164: '+6281234567892', city: 'Jakarta', status: 'active' },
+        { id: 'demo-res-3', name: 'Reseller Surabaya', phone_e164: '+6281234567893', city: 'Surabaya', status: 'active' },
+      ],
+      cardStats: adminCards.map(c => ({ lifecycle_state: c[1] === 'active' ? 'claimed' : c[1] }))
+    };
+  }
   
   try {
     // Load all cards with relations
-    const { data: cards } = await supabaseClient
+    const { data: cards, error: cardsError } = await supabaseClient
       .from('cards')
       .select(`
         *,
@@ -2042,26 +2162,41 @@ async function loadAdminDashboardData() {
       .order('created_at', { ascending: false })
       .limit(50);
     
+    if (cardsError) {
+      console.error('Load cards error:', cardsError);
+    }
+    
     // Load resellers
-    const { data: resellers } = await supabaseClient
+    const { data: resellers, error: resellersError } = await supabaseClient
       .from('resellers')
       .select('*')
       .order('name');
     
+    if (resellersError) {
+      console.error('Load resellers error:', resellersError);
+    }
+    
     // Load stats
-    const { data: cardStats } = await supabaseClient
+    const { data: cardStats, error: statsError } = await supabaseClient
       .from('cards')
       .select('lifecycle_state');
     
-    return { cards, resellers, cardStats };
+    if (statsError) {
+      console.error('Load card stats error:', statsError);
+    }
+    
+    return { 
+      cards: cards || [], 
+      resellers: resellers || [], 
+      cardStats: cardStats || [] 
+    };
   } catch (e) {
     console.error('Error loading admin data:', e);
-    return null;
+    return { cards: [], resellers: [], cardStats: [] };
   }
 }
 
-// Initialize connection check
-checkSupabaseConnection();
+// Initialize connection check - removed, will be called in initApp()
 
 const state = {
   mobileMenu: false,

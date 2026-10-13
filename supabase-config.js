@@ -1,3 +1,3 @@
 // SPNB DIGITAL - Supabase Configuration
-const SUPABASE_URL = 'https://qyegiszroksmbuphpgzx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5ZWdpc3pyb2tzbWJ1cGhwZ3p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4Mjk5NTgsImV4cCI6MjEwNzQwNTk1OH0.AZ28n4LyXoHv2gcXYoN87KtHcxCBZBVmwAHKPjVfc4s';
+const SUPABASE_URL = 'https://llmmdiuiynveqlklngzg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxsbW1kaXVpeW52ZXFsa2xuZ3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NzY4MDgsImV4cCI6MjEwNzQ1MjgwOH0.53WXdIc4Hp4gihqy8NbRI5o-UUk2iGQSnx5jKTpBRDw';
