@@ -520,6 +520,46 @@ async function handleResendConfirmationEmail() {
   }
 }
 
+// Polling to check if email has been confirmed
+let emailPollingInterval = null;
+
+function startEmailConfirmationPolling() {
+  // Don't start if already polling
+  if (emailPollingInterval) return;
+  
+  console.log('Starting email confirmation polling...');
+  
+  emailPollingInterval = setInterval(async () => {
+    try {
+      // Check if user session exists (means email confirmed)
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
+      
+      if (session?.user) {
+        console.log('Email confirmed! User session found.');
+        stopEmailConfirmationPolling();
+        
+        // Load user data
+        await loadUserData(session.user);
+        
+        // Update state and show confirmed page
+        state.activation.emailConfirmed = true;
+        state.activation.emailConfirmationPending = false;
+        render();
+      }
+    } catch (e) {
+      console.error('Polling error:', e);
+    }
+  }, 3000); // Check every 3 seconds
+}
+
+function stopEmailConfirmationPolling() {
+  if (emailPollingInterval) {
+    clearInterval(emailPollingInterval);
+    emailPollingInterval = null;
+    console.log('Stopped email confirmation polling.');
+  }
+}
+
 // Handle login during activation
 async function handleActivationLogin() {
   const a = state.activation;

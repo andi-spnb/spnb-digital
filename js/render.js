@@ -1,16 +1,109 @@
 // ============ RENDER & ROUTING ============
 
+// Check if URL contains Supabase auth callback parameters
+function isAuthCallback() {
+  const hash = window.location.hash || '';
+  const fullUrl = window.location.href;
+  
+  // Supabase adds these params after email confirmation
+  return hash.includes('access_token=') || 
+         hash.includes('refresh_token=') || 
+         hash.includes('type=signup') ||
+         hash.includes('type=recovery') ||
+         fullUrl.includes('access_token=') ||
+         fullUrl.includes('code=');
+}
+
+// Handle Supabase auth callback (email confirmation)
+async function handleAuthCallback() {
+  console.log('Handling auth callback...');
+  
+  // Let Supabase process the tokens in the URL
+  const { data, error } = await supabaseClient.auth.getSession();
+  
+  if (error) {
+    console.error('Auth callback error:', error);
+    return false;
+  }
+  
+  if (data?.session?.user) {
+    console.log('Auth callback successful, user:', data.session.user.email);
+    await loadUserData(data.session.user);
+    return true;
+  }
+  
+  return false;
+}
+
 function render() {
   state.mobileMenu = false;
   const route = getRoute();
+  
+  // Check for auth callback (email confirmation redirect)
+  if (isAuthCallback()) {
+    // Show loading while processing auth
+    root.innerHTML = `
+      <div class="activation-page">
+        <div class="activation-wrap">
+          <div class="activation-brand">${brand("#/")}</div>
+          <div class="activation-card" style="max-width:520px">
+            <section class="activation-main" style="text-align:center;padding:48px 40px">
+              <div class="loading-spinner"></div>
+              <h2 style="margin-top:24px">Memverifikasi Email...</h2>
+              <p style="color:var(--muted)">Mohon tunggu sebentar</p>
+            </section>
+          </div>
+        </div>
+      </div>`;
+    
+    handleAuthCallback().then(success => {
+      if (success) {
+        // Clean URL - remove auth params but keep activation token
+        const activationToken = getActivationTokenFromUrl();
+        
+        // Show email confirmed page
+        state.activation.emailConfirmed = true;
+        state.activation.emailConfirmationPending = false;
+        
+        if (activationToken) {
+          state.activation.token = activationToken;
+          // Redirect to clean URL
+          window.history.replaceState(null, '', `#/aktivasi?token=${activationToken}`);
+        } else {
+          window.history.replaceState(null, '', '#/aktivasi');
+        }
+        
+        render();
+      } else {
+        // Auth failed, show error or redirect to login
+        toast('Gagal memverifikasi email. Silakan coba lagi.');
+        go('/login');
+      }
+    });
+    return;
+  }
   
   // Initialize activation flow when visiting /aktivasi
   if (route === "/aktivasi" || route.startsWith("/aktivasi?")) {
     const a = state.activation;
     const currentToken = getActivationTokenFromUrl();
     
+    // If email just confirmed, don't reinitialize - show confirmed page
+    if (a.emailConfirmed) {
+      renderPage(route);
+      return;
+    }
+    
+    // If waiting for email confirmation and user is now logged in, advance
+    if (a.emailConfirmationPending && isLoggedIn()) {
+      a.emailConfirmed = true;
+      a.emailConfirmationPending = false;
+      renderPage(route);
+      return;
+    }
+    
     // Only reinitialize if token changed or not yet initialized
-    if (a.token !== currentToken || (!a.cardStatus && !a.isLoading)) {
+    if (a.token !== currentToken || (!a.cardStatus && !a.isLoading && !a.emailConfirmationPending)) {
       initActivationFlow();
       return; // initActivationFlow will call render when done
     }

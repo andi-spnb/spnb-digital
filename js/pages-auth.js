@@ -143,6 +143,9 @@ function activationPage() {
   
   // Email confirmation pending - show check email page
   if (a.emailConfirmationPending) {
+    // Start polling to check if user has confirmed email
+    startEmailConfirmationPolling();
+    
     return `
       <div class="activation-page">
         <div class="activation-wrap">
