@@ -15,8 +15,18 @@ async function initAuth() {
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth event:', event);
       if (event === 'SIGNED_IN' && session?.user) {
+        // Only redirect if user was not already logged in (fresh login)
+        const wasLoggedIn = currentUser !== null;
         await loadUserData(session.user);
-        redirectToDashboard();
+        
+        // Only redirect on fresh login, not on session refresh/resume
+        if (!wasLoggedIn) {
+          redirectToDashboard();
+        }
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        // Token refresh - just update user data, don't redirect
+        await loadUserData(session.user);
+        console.log('Token refreshed, staying on current page');
       } else if (event === 'SIGNED_OUT') {
         clearUserData();
         go('/login');

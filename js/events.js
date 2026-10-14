@@ -413,9 +413,14 @@ root.addEventListener("click", (event) => {
         document.querySelectorAll('#destination-choice .choice-card').forEach(c => {
           c.classList.toggle('selected', c.dataset.mode === mode);
         });
+        // Also update the data attribute on grid
+        const grid = document.getElementById('destination-choice');
+        if (grid) {
+          grid.dataset.selectedMode = mode;
+        }
       }
       // Scroll to the form
-      document.querySelector('.panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.querySelector('.panel:last-of-type')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     return;
   }
@@ -427,6 +432,9 @@ root.addEventListener("click", (event) => {
     if (parent) {
       parent.querySelectorAll('.choice-card').forEach(c => c.classList.remove('selected'));
       choiceCard.classList.add('selected');
+      
+      // Store selected mode in a data attribute on the grid for later retrieval
+      parent.dataset.selectedMode = choiceCard.dataset.mode;
     }
     return;
   }
@@ -663,6 +671,24 @@ root.addEventListener("input", (event) => {
 
 // File upload handler
 root.addEventListener("change", (event) => {
+  // Card select dropdown - update destination mode when card changes
+  if (event.target.id === 'card-select') {
+    const cardSelect = event.target;
+    const selectedOption = cardSelect.querySelector(`option[value="${cardSelect.value}"]`);
+    if (selectedOption) {
+      const mode = selectedOption.dataset.mode || 'direct_google';
+      document.querySelectorAll('#destination-choice .choice-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.mode === mode);
+      });
+      // Also update the data attribute on grid
+      const grid = document.getElementById('destination-choice');
+      if (grid) {
+        grid.dataset.selectedMode = mode;
+      }
+    }
+    return;
+  }
+  
   // Filter dropdowns
   const filterSelect = event.target.closest("[data-filter]");
   if (filterSelect) {
