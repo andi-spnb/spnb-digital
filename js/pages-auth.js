@@ -87,34 +87,6 @@ function loginPage() {
               </button>
             </form>
             
-            <div class="login-separator">
-              <span>atau masuk sebagai demo</span>
-            </div>
-            
-            <div class="login-demo-grid">
-              <button class="login-demo-btn" data-quick-login="owner">
-                <div class="login-demo-icon" style="background:#10b981">${icons.user}</div>
-                <div class="login-demo-info">
-                  <span class="login-demo-role">Owner</span>
-                  <span class="login-demo-email">owner@spnb.id</span>
-                </div>
-              </button>
-              <button class="login-demo-btn" data-quick-login="reseller">
-                <div class="login-demo-icon" style="background:#8b5cf6">${icons.reseller}</div>
-                <div class="login-demo-info">
-                  <span class="login-demo-role">Reseller</span>
-                  <span class="login-demo-email">reseller@spnb.id</span>
-                </div>
-              </button>
-              <button class="login-demo-btn" data-quick-login="admin">
-                <div class="login-demo-icon" style="background:#f59e0b">${icons.setting}</div>
-                <div class="login-demo-info">
-                  <span class="login-demo-role">Admin</span>
-                  <span class="login-demo-email">admin@spnb.id</span>
-                </div>
-              </button>
-            </div>
-            
             <p class="login-register">
               Belum punya akun? <a href="#/aktivasi">Aktivasi kartu baru</a>
             </p>
