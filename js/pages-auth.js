@@ -5,75 +5,124 @@ function loginPage() {
   const loginLoading = state.loginLoading || false;
   
   return `
-    <div class="activation-page">
-      <div class="activation-wrap" style="max-width:900px">
-        <div class="activation-brand">${brand("#/")}</div>
-        <div class="activation-card login-card">
-          <aside class="activation-aside">
-            <div class="login-aside-content">
-              <h2>Selamat datang di SPNB DIGITAL</h2>
-              <p>Platform manajemen kartu Google Review untuk UMKM Indonesia.</p>
-              <div class="login-features">
-                <div class="login-feature">${icons.card}<span>Kelola kartu NFC & QR</span></div>
-                <div class="login-feature">${icons.chart}<span>Pantau statistik interaksi</span></div>
-                <div class="login-feature">${icons.business}<span>Buat profil bisnis digital</span></div>
+    <div class="login-page">
+      <div class="login-container">
+        <div class="login-left">
+          <div class="login-left-content">
+            <div class="login-logo-wrapper">
+              <img src="https://spnbdigital.id/assets/img/1.png" alt="SPNB Digital" class="login-logo-img" />
+            </div>
+            <div class="login-tagline">
+              <h1>Kelola Review Google<br/>Bisnis Anda</h1>
+              <p>Platform kartu NFC & QR untuk mengumpulkan ulasan pelanggan dengan mudah.</p>
+            </div>
+            <div class="login-stats">
+              <div class="login-stat">
+                <span class="login-stat-num">500+</span>
+                <span class="login-stat-label">UMKM Aktif</span>
+              </div>
+              <div class="login-stat">
+                <span class="login-stat-num">12K+</span>
+                <span class="login-stat-label">Kartu Terbit</span>
+              </div>
+              <div class="login-stat">
+                <span class="login-stat-num">89K+</span>
+                <span class="login-stat-label">Review</span>
               </div>
             </div>
-          </aside>
-          <section class="activation-main">
-            <div class="activation-head">
-              <h1>Masuk ke Dashboard</h1>
-              <p>Gunakan email dan password yang telah didaftarkan.</p>
+          </div>
+          <div class="login-left-footer">
+            <p>Dipercaya oleh UMKM di seluruh Indonesia</p>
+          </div>
+        </div>
+        
+        <div class="login-right">
+          <div class="login-right-header">
+            <a href="#/" class="login-back-link">← Kembali</a>
+          </div>
+          
+          <div class="login-form-wrapper">
+            <div class="login-form-header">
+              <h2>Masuk ke Dashboard</h2>
+              <p>Masukkan email dan password Anda</p>
             </div>
             
-            ${loginError ? `<div class="error-box">${icons.help} ${loginError}</div>` : ''}
+            ${loginError ? `<div class="login-error"><span>!</span>${loginError}</div>` : ''}
             
-            <form id="loginForm" class="stack">
-              <div class="form-group">
-                <label>Email</label>
-                <input class="input" type="email" id="loginEmail" placeholder="contoh@email.com" required />
+            <form id="loginForm" class="login-form">
+              <div class="login-field">
+                <label for="loginEmail">Email</label>
+                <input 
+                  type="email" 
+                  id="loginEmail" 
+                  placeholder="nama@email.com" 
+                  autocomplete="email"
+                  required 
+                />
               </div>
-              <div class="form-group">
-                <label>Password</label>
-                <input class="input" type="password" id="loginPassword" placeholder="Masukkan password" required />
+              
+              <div class="login-field">
+                <label for="loginPassword">Password</label>
+                <input 
+                  type="password" 
+                  id="loginPassword" 
+                  placeholder="••••••••" 
+                  autocomplete="current-password"
+                  required 
+                />
               </div>
-              <div class="row-between">
-                <label class="checkbox-label"><input type="checkbox" id="rememberMe" /> Ingat saya</label>
-                <button type="button" class="text-link" data-demo-toast="Hubungi admin untuk reset password.">Lupa password?</button>
+              
+              <div class="login-options">
+                <label class="login-remember">
+                  <input type="checkbox" id="rememberMe" />
+                  <span>Ingat saya</span>
+                </label>
+                <button type="button" class="login-forgot" data-demo-toast="Hubungi admin untuk reset password.">
+                  Lupa password?
+                </button>
               </div>
-              <button type="submit" class="btn btn-primary btn-block" ${loginLoading ? 'disabled' : ''}>
-                ${loginLoading ? 'Memproses...' : 'Masuk'}
+              
+              <button type="submit" class="login-submit" ${loginLoading ? 'disabled' : ''}>
+                ${loginLoading ? '<span class="login-spinner"></span>Memproses...' : 'Masuk'}
               </button>
             </form>
             
-            <div class="login-divider"><span>atau login cepat demo</span></div>
+            <div class="login-separator">
+              <span>atau masuk sebagai demo</span>
+            </div>
             
-            <div class="demo-roles">
-              <button class="demo-role-card" data-quick-login="owner">
-                <div class="demo-role-icon owner">${icons.user}</div>
-                <div>
-                  <strong>Owner</strong>
-                  <span>owner@spnb.id</span>
+            <div class="login-demo-grid">
+              <button class="login-demo-btn" data-quick-login="owner">
+                <div class="login-demo-icon" style="background:#10b981">${icons.user}</div>
+                <div class="login-demo-info">
+                  <span class="login-demo-role">Owner</span>
+                  <span class="login-demo-email">owner@spnb.id</span>
                 </div>
               </button>
-              <button class="demo-role-card" data-quick-login="reseller">
-                <div class="demo-role-icon reseller">${icons.reseller}</div>
-                <div>
-                  <strong>Reseller</strong>
-                  <span>reseller@spnb.id</span>
+              <button class="login-demo-btn" data-quick-login="reseller">
+                <div class="login-demo-icon" style="background:#8b5cf6">${icons.reseller}</div>
+                <div class="login-demo-info">
+                  <span class="login-demo-role">Reseller</span>
+                  <span class="login-demo-email">reseller@spnb.id</span>
                 </div>
               </button>
-              <button class="demo-role-card" data-quick-login="admin">
-                <div class="demo-role-icon admin">${icons.setting}</div>
-                <div>
-                  <strong>Admin</strong>
-                  <span>admin@spnb.id</span>
+              <button class="login-demo-btn" data-quick-login="admin">
+                <div class="login-demo-icon" style="background:#f59e0b">${icons.setting}</div>
+                <div class="login-demo-info">
+                  <span class="login-demo-role">Admin</span>
+                  <span class="login-demo-email">admin@spnb.id</span>
                 </div>
               </button>
             </div>
             
-            <p class="login-footer-text">Belum punya akun? <button class="text-link" data-route="/aktivasi">Aktivasi kartu baru</button></p>
-          </section>
+            <p class="login-register">
+              Belum punya akun? <a href="#/aktivasi">Aktivasi kartu baru</a>
+            </p>
+          </div>
+          
+          <div class="login-right-footer">
+            <p>© 2026 SPNB Digital. All rights reserved.</p>
+          </div>
         </div>
       </div>
     </div>`;
