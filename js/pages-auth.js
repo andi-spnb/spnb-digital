@@ -104,6 +104,65 @@ function activationPage() {
   const a = state.activation;
   const steps = ["Verifikasi", "Akun", "Profil Usaha", "Tujuan"];
   
+  // Email confirmation pending - show check email page
+  if (a.emailConfirmationPending) {
+    return `
+      <div class="activation-page">
+        <div class="activation-wrap">
+          <div class="activation-brand">${brand("#/")}</div>
+          <div class="activation-card" style="max-width:520px">
+            <section class="activation-main" style="text-align:center;padding:48px 40px">
+              <div class="email-sent-icon">
+                <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="40" cy="40" r="40" fill="#e0f2fe"/>
+                  <path d="M24 30h32v20H24V30z" fill="#0ea5e9"/>
+                  <path d="M24 30l16 12 16-12" stroke="#fff" stroke-width="2" fill="none"/>
+                  <circle cx="54" cy="26" r="10" fill="#22c55e"/>
+                  <path d="M50 26l3 3 5-5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <h1 style="margin:24px 0 12px;font-size:24px">Cek Email Anda</h1>
+              <p style="color:var(--muted);margin-bottom:8px;font-size:15px">
+                Kami telah mengirim link konfirmasi ke:
+              </p>
+              <p style="font-weight:600;font-size:16px;color:var(--ink);margin-bottom:24px">
+                ${a.pendingEmail || a.email}
+              </p>
+              <div class="email-instructions">
+                <div class="email-instruction-item">
+                  <span class="email-step-num">1</span>
+                  <span>Buka inbox email Anda</span>
+                </div>
+                <div class="email-instruction-item">
+                  <span class="email-step-num">2</span>
+                  <span>Cari email dari SPNB Digital</span>
+                </div>
+                <div class="email-instruction-item">
+                  <span class="email-step-num">3</span>
+                  <span>Klik tombol konfirmasi di email</span>
+                </div>
+                <div class="email-instruction-item">
+                  <span class="email-step-num">4</span>
+                  <span>Anda akan diarahkan untuk melanjutkan aktivasi</span>
+                </div>
+              </div>
+              <div class="email-note">
+                <strong>Tidak menerima email?</strong>
+                <p>Cek folder spam atau promosi. Email biasanya sampai dalam 1-2 menit.</p>
+              </div>
+              <div class="email-actions">
+                <button class="btn btn-ghost" data-resend-email>Kirim Ulang Email</button>
+                <button class="btn btn-secondary" data-back-to-register>Ubah Email</button>
+              </div>
+              <p style="margin-top:24px;font-size:13px;color:var(--muted)">
+                Butuh bantuan? <a href="${whatsappUrl}" target="_blank" rel="noopener" style="color:var(--blue-700)">Hubungi kami</a>
+              </p>
+            </section>
+          </div>
+        </div>
+      </div>`;
+  }
+  
   // Loading state
   if (a.isLoading || a.cardStatus === 'validating') {
     return `

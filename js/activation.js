@@ -466,9 +466,10 @@ async function handleActivationRegister() {
       toast('Akun berhasil dibuat!');
       return true;
     } else {
-      // Email confirmation required
+      // Email confirmation required - show check email page
       a.isSubmitting = false;
-      toast('Silakan cek email untuk konfirmasi akun.');
+      a.emailConfirmationPending = true;
+      a.pendingEmail = a.email;
       render();
       return false;
     }
@@ -478,6 +479,44 @@ async function handleActivationRegister() {
     toast('Terjadi kesalahan. Silakan coba lagi.');
     render();
     return false;
+  }
+}
+
+// Handle resend confirmation email
+async function handleResendConfirmationEmail() {
+  const a = state.activation;
+  const email = a.pendingEmail || a.email;
+  
+  if (!email) {
+    toast('Email tidak ditemukan. Silakan daftar ulang.');
+    a.emailConfirmationPending = false;
+    render();
+    return;
+  }
+  
+  toast('Mengirim ulang email...');
+  
+  try {
+    const { error } = await supabaseClient.auth.resend({
+      type: 'signup',
+      email: email,
+      options: {
+        emailRedirectTo: a.token 
+          ? `${window.location.origin}/#/aktivasi?token=${a.token}`
+          : `${window.location.origin}/#/aktivasi`
+      }
+    });
+    
+    if (error) {
+      console.error('Resend email error:', error);
+      toast('Gagal mengirim ulang email: ' + error.message);
+      return;
+    }
+    
+    toast('Email konfirmasi berhasil dikirim ulang!');
+  } catch (e) {
+    console.error('Resend email exception:', e);
+    toast('Terjadi kesalahan. Silakan coba lagi.');
   }
 }
 

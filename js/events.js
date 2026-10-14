@@ -154,6 +154,18 @@ root.addEventListener("click", (event) => {
     return;
   }
 
+  // Email confirmation handlers
+  if (event.target.closest("[data-resend-email]")) {
+    handleResendConfirmationEmail();
+    return;
+  }
+  
+  if (event.target.closest("[data-back-to-register]")) {
+    state.activation.emailConfirmationPending = false;
+    render();
+    return;
+  }
+
   // Destination mode selection
   const destination = event.target.closest("[data-destination]");
   if (destination) { 

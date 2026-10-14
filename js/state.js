@@ -72,6 +72,9 @@ const state = {
     // Processing state
     isLoading: false,
     isSubmitting: false,
+    // Email confirmation state
+    emailConfirmationPending: false,
+    pendingEmail: "",
   },
   resellerCards: [
     { serial: "KRT-000125", status: "stock", date: "—", owner: "—" },
