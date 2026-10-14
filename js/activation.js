@@ -529,27 +529,64 @@ function startEmailConfirmationPolling() {
   
   console.log('Starting email confirmation polling...');
   
-  emailPollingInterval = setInterval(async () => {
+  const checkConfirmation = async () => {
     try {
-      // Check if user session exists (means email confirmed)
-      const { data: { session }, error } = await supabaseClient.auth.getSession();
+      const a = state.activation;
+      
+      // First check if there's already a session
+      const { data: { session } } = await supabaseClient.auth.getSession();
       
       if (session?.user) {
-        console.log('Email confirmed! User session found.');
+        console.log('Session found! Email confirmed.');
         stopEmailConfirmationPolling();
-        
-        // Load user data
         await loadUserData(session.user);
-        
-        // Update state and show confirmed page
         state.activation.emailConfirmed = true;
         state.activation.emailConfirmationPending = false;
         render();
+        return;
+      }
+      
+      // Try to login with stored credentials to check if email is confirmed
+      if (a.email && a.password) {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email: a.email,
+          password: a.password
+        });
+        
+        if (data?.user && data?.session) {
+          // Login successful - email was confirmed!
+          console.log('Login successful! Email was confirmed.');
+          stopEmailConfirmationPolling();
+          await loadUserData(data.user);
+          state.activation.emailConfirmed = true;
+          state.activation.emailConfirmationPending = false;
+          render();
+          return;
+        }
+        
+        if (error) {
+          // Check error type
+          if (error.message?.includes('Email not confirmed')) {
+            console.log('Email not yet confirmed, continuing to poll...');
+          } else if (error.message?.includes('Invalid login credentials')) {
+            // Credentials wrong - stop polling
+            console.log('Invalid credentials, stopping poll');
+            stopEmailConfirmationPolling();
+          } else {
+            console.log('Login check error:', error.message);
+          }
+        }
       }
     } catch (e) {
       console.error('Polling error:', e);
     }
-  }, 3000); // Check every 3 seconds
+  };
+  
+  // Check immediately first
+  checkConfirmation();
+  
+  // Then poll every 3 seconds
+  emailPollingInterval = setInterval(checkConfirmation, 3000);
 }
 
 function stopEmailConfirmationPolling() {

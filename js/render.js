@@ -10,29 +10,55 @@ function isAuthCallback() {
          hash.includes('refresh_token=') || 
          hash.includes('type=signup') ||
          hash.includes('type=recovery') ||
+         hash.includes('type=email') ||
          fullUrl.includes('access_token=') ||
-         fullUrl.includes('code=');
+         fullUrl.includes('code=') ||
+         fullUrl.includes('type=signup');
 }
 
 // Handle Supabase auth callback (email confirmation)
 async function handleAuthCallback() {
   console.log('Handling auth callback...');
   
-  // Let Supabase process the tokens in the URL
-  const { data, error } = await supabaseClient.auth.getSession();
-  
-  if (error) {
-    console.error('Auth callback error:', error);
+  try {
+    // Let Supabase process the tokens in the URL
+    const { data, error } = await supabaseClient.auth.getSession();
+    
+    if (error) {
+      console.error('Auth callback getSession error:', error);
+    }
+    
+    if (data?.session?.user) {
+      console.log('Auth callback successful, user:', data.session.user.email);
+      await loadUserData(data.session.user);
+      return true;
+    }
+    
+    // If no session yet, try to exchange code/token
+    // Supabase should auto-handle this, but let's wait a moment and retry
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const { data: retryData } = await supabaseClient.auth.getSession();
+    if (retryData?.session?.user) {
+      console.log('Auth callback successful on retry, user:', retryData.session.user.email);
+      await loadUserData(retryData.session.user);
+      return true;
+    }
+    
+    // Still no session - try to get user from URL params
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    if (userData?.user) {
+      console.log('Got user from getUser:', userData.user.email);
+      await loadUserData(userData.user);
+      return true;
+    }
+    
+    console.log('No user found in auth callback');
+    return false;
+  } catch (e) {
+    console.error('Auth callback exception:', e);
     return false;
   }
-  
-  if (data?.session?.user) {
-    console.log('Auth callback successful, user:', data.session.user.email);
-    await loadUserData(data.session.user);
-    return true;
-  }
-  
-  return false;
 }
 
 function render() {
