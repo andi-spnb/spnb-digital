@@ -8,7 +8,21 @@ async function handleConfirmSell(cardId, serial) {
   if (USE_REAL_DATA && cardId && cardId.includes('-')) {
     try {
       toast('Memproses...');
-      const { data, error } = await markCardSold(cardId);
+      
+      let result;
+      const route = getRoute();
+      
+      // Use admin function if on admin page
+      if (route.startsWith('/admin') && hasRole('admin')) {
+        result = await supabaseClient.rpc('admin_mark_card_sold', {
+          p_card_id: cardId,
+          p_idempotency_key: crypto.randomUUID()
+        });
+      } else {
+        result = await markCardSold(cardId);
+      }
+      
+      const { data, error } = result;
       
       if (error) {
         console.error('Mark sold error:', error);
@@ -16,8 +30,13 @@ async function handleConfirmSell(cardId, serial) {
         return;
       }
       
+      // Check for RPC error response
+      if (data?.error) {
+        toast('Gagal menandai kartu: ' + (data.message || 'Terjadi kesalahan'));
+        return;
+      }
+      
       // Reload data based on current route
-      const route = getRoute();
       if (route.startsWith('/admin')) {
         state.adminData = await loadAdminDashboardData();
       } else {
