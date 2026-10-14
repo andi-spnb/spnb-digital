@@ -402,7 +402,7 @@ function adminCardsPage() {
             </td></tr>
           ` : paginatedCards.map(c => {
             const isSelected = selectedCards.includes(c.id || c.serial);
-            const canMarkSold = c.status === 'stock' || c.lifecycle_state === 'reseller_stock' || c.status === 'admin' || c.lifecycle_state === 'admin_stock';
+            const canMarkSold = c.status === 'stock' || c.lifecycle_state === 'reseller_stock';
             const canUnsell = c.status === 'sold' || c.lifecycle_state === 'sold_unclaimed';
             return `
             <tr class="${isSelected ? 'selected-row' : ''}">
