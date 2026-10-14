@@ -14,10 +14,41 @@ async function initAuth() {
     // Listen for auth changes
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth event:', event);
-      if (event === 'SIGNED_IN' && session?.user) {
-        // Only redirect if user was not already logged in (fresh login)
+      
+      // Handle email confirmation (USER_UPDATED event after clicking email link)
+      if (event === 'USER_UPDATED' && session?.user) {
         const wasLoggedIn = currentUser !== null;
         await loadUserData(session.user);
+        
+        // Check if user just confirmed email and is on activation flow
+        const route = getRoute();
+        if (route.startsWith('/aktivasi')) {
+          // Show email confirmed state and continue activation
+          state.activation.emailConfirmed = true;
+          state.activation.emailConfirmationPending = false;
+          render();
+        }
+        return;
+      }
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        const wasLoggedIn = currentUser !== null;
+        await loadUserData(session.user);
+        
+        // Check if this is from email confirmation callback
+        const route = getRoute();
+        if (route.startsWith('/aktivasi')) {
+          // User confirmed email and came back to activation
+          state.activation.emailConfirmed = true;
+          state.activation.emailConfirmationPending = false;
+          
+          // Load businesses and continue to step 3
+          await loadUserBusinesses();
+          state.activation.step = 3;
+          render();
+          toast('Email berhasil dikonfirmasi!');
+          return;
+        }
         
         // Only redirect on fresh login, not on session refresh/resume
         if (!wasLoggedIn) {

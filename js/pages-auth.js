@@ -104,6 +104,43 @@ function activationPage() {
   const a = state.activation;
   const steps = ["Verifikasi", "Akun", "Profil Usaha", "Tujuan"];
   
+  // Email confirmed - show success and auto-redirect
+  if (a.emailConfirmed && !a.emailConfirmationPending) {
+    // Auto redirect after 2 seconds
+    setTimeout(() => {
+      if (state.activation.emailConfirmed) {
+        state.activation.emailConfirmed = false;
+        loadUserBusinesses().then(() => {
+          state.activation.step = 3;
+          render();
+        });
+      }
+    }, 2000);
+    
+    return `
+      <div class="activation-page">
+        <div class="activation-wrap">
+          <div class="activation-brand">${brand("#/")}</div>
+          <div class="activation-card" style="max-width:520px">
+            <section class="activation-main" style="text-align:center;padding:48px 40px">
+              <div class="email-confirmed-icon">
+                <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="40" cy="40" r="40" fill="#dcfce7"/>
+                  <circle cx="40" cy="40" r="28" fill="#22c55e"/>
+                  <path d="M28 40l8 8 16-16" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <h1 style="margin:24px 0 12px;font-size:24px;color:#16a34a">Email Berhasil Dikonfirmasi!</h1>
+              <p style="color:var(--muted);margin-bottom:24px;font-size:15px">
+                Akun Anda sudah aktif. Mengalihkan ke langkah selanjutnya...
+              </p>
+              <div class="loading-spinner" style="margin:0 auto"></div>
+            </section>
+          </div>
+        </div>
+      </div>`;
+  }
+  
   // Email confirmation pending - show check email page
   if (a.emailConfirmationPending) {
     return `
@@ -143,8 +180,12 @@ function activationPage() {
                 </div>
                 <div class="email-instruction-item">
                   <span class="email-step-num">4</span>
-                  <span>Anda akan diarahkan untuk melanjutkan aktivasi</span>
+                  <span>Halaman ini akan otomatis lanjut</span>
                 </div>
+              </div>
+              <div class="email-waiting-indicator">
+                <div class="loading-spinner-small"></div>
+                <span>Menunggu konfirmasi email...</span>
               </div>
               <div class="email-note">
                 <strong>Tidak menerima email?</strong>

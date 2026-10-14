@@ -74,6 +74,7 @@ const state = {
     isSubmitting: false,
     // Email confirmation state
     emailConfirmationPending: false,
+    emailConfirmed: false,
     pendingEmail: "",
   },
   resellerCards: [
