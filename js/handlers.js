@@ -16,8 +16,13 @@ async function handleConfirmSell(cardId, serial) {
         return;
       }
       
-      // Reload reseller data
-      state.resellerData = await loadResellerDashboardData();
+      // Reload data based on current route
+      const route = getRoute();
+      if (route.startsWith('/admin')) {
+        state.adminData = await loadAdminDashboardData();
+      } else {
+        state.resellerData = await loadResellerDashboardData();
+      }
       render();
       toast(`${serial} siap diaktifkan oleh pembeli.`);
     } catch (e) {
@@ -51,8 +56,13 @@ async function handleUnsellCard(cardId, serial) {
         return;
       }
       
-      // Reload reseller data
-      state.resellerData = await loadResellerDashboardData();
+      // Reload data based on current route
+      const route = getRoute();
+      if (route.startsWith('/admin')) {
+        state.adminData = await loadAdminDashboardData();
+      } else {
+        state.resellerData = await loadResellerDashboardData();
+      }
       render();
       toast('Status terjual berhasil dibatalkan.');
     } catch (e) {

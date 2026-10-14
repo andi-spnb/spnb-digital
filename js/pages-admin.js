@@ -402,6 +402,8 @@ function adminCardsPage() {
             </td></tr>
           ` : paginatedCards.map(c => {
             const isSelected = selectedCards.includes(c.id || c.serial);
+            const canMarkSold = c.status === 'stock' || c.lifecycle_state === 'reseller_stock' || c.status === 'admin' || c.lifecycle_state === 'admin_stock';
+            const canUnsell = c.status === 'sold' || c.lifecycle_state === 'sold_unclaimed';
             return `
             <tr class="${isSelected ? 'selected-row' : ''}">
               <td data-label=""><input type="checkbox" data-select-card="${c.id || c.serial}" ${isSelected ? 'checked' : ''} /></td>
@@ -415,7 +417,11 @@ function adminCardsPage() {
               <td data-label="Reseller">${c.reseller}</td>
               <td data-label="Owner">${c.owner}</td>
               <td data-label="Aktivasi">${c.activated}</td>
-              <td data-label=""><button class="action-menu" data-card-menu="${c.id || c.serial}">⋯</button></td>
+              <td data-label="" class="action-cell">
+                ${canMarkSold ? `<button class="btn btn-primary btn-sm" data-sell-card="${c.id || c.serial}" data-serial="${c.serial}">Tandai Terjual</button>` : ''}
+                ${canUnsell ? `<button class="btn btn-ghost btn-sm" data-unsell-card="${c.id || c.serial}" data-serial="${c.serial}">Batalkan</button>` : ''}
+                <button class="action-menu" data-card-menu="${c.id || c.serial}">⋯</button>
+              </td>
             </tr>`;
           }).join("")}
         </tbody>
